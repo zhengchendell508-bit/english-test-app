@@ -4,77 +4,28 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#24415f">
-  <title>新概念英语答题 App</title>
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="style.css">
+  <title>英语学习系统入口</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f3f6f9;color:#17212b;display:grid;place-items:center;padding:24px}.wrap{width:min(760px,100%)}h1{font-size:30px;margin:0 0 8px}.sub{color:#667789;margin:0 0 24px}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.card{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #d5dde5;border-radius:18px;padding:26px;box-shadow:0 10px 30px rgba(36,65,95,.08);transition:.15s transform,.15s box-shadow}.card:hover{transform:translateY(-2px);box-shadow:0 15px 36px rgba(36,65,95,.13)}.icon{font-size:42px}.card h2{margin:14px 0 8px;font-size:22px}.card p{margin:0;color:#667789;line-height:1.6}.student{border-top:6px solid #24415f}.admin{border-top:6px solid #18794e}.note{margin-top:18px;background:#fff7e6;border:1px solid #f0d29c;border-radius:12px;padding:14px;color:#72510d;line-height:1.6}@media(max-width:650px){.cards{grid-template-columns:1fr}h1{font-size:24px}}
+  </style>
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <h1>新概念英语答题 App</h1>
-      <p>Lesson 1–10 · iPad 版</p>
-    </div>
-    <div class="top-actions"><a class="ghost-link" href="admin.html">管理后台</a><button id="settingsBtn" class="ghost-btn">设置</button></div>
-  </header>
-
-  <main>
-    <section class="student-card">
-      <label>姓名<input id="studentName" autocomplete="name" placeholder="请输入姓名"></label>
-      <label>日期<input id="testDate" type="date"></label>
-      <div class="save-status" id="saveStatus">已自动保存</div>
+  <main class="wrap">
+    <h1>英语学习系统</h1>
+    <p class="sub">请选择要打开的页面。</p>
+    <section class="cards">
+      <a class="card student" href="student.html">
+        <div class="icon">✍️</div>
+        <h2>孩子答题页面</h2>
+        <p>进入单词、短语和句子的听写答题页面。</p>
+      </a>
+      <a class="card admin" href="admin.html">
+        <div class="icon">🗂️</div>
+        <h2>题库管理后台</h2>
+        <p>查看 Lesson、上传 TXT、搜索、分类、修改和试听内容。</p>
+      </a>
     </section>
-
-    <nav class="tabs" aria-label="题目部分">
-      <button class="tab active" data-section="words">单词 <span>150</span></button>
-      <button class="tab" data-section="phrases">短语 <span>200</span></button>
-      <button class="tab" data-section="sentences">句子 <span>200</span></button>
-    </nav>
-
-    <section class="toolbar">
-      <div>
-        <strong id="sectionTitle">第一部分：单词</strong>
-        <span id="progressText">已填写 0 / 150</span>
-      </div>
-      <div class="toolbar-actions">
-        <button id="jumpBtn" class="ghost-btn">跳到题号</button>
-        <button id="gradeBtn" class="primary-btn">提交批改</button>
-      </div>
-    </section>
-
-    <section id="resultPanel" class="result-panel hidden"></section>
-    <section id="questions" class="questions words-grid"></section>
+    <div class="note">这是演示版入口。正式版后台会增加登录保护，孩子无法进入。</div>
   </main>
-
-  <dialog id="settingsDialog">
-    <form method="dialog">
-      <h2>设置</h2>
-      <label class="switch-row">
-        <span>显示正确答案按钮</span>
-        <input id="allowReveal" type="checkbox">
-      </label>
-      <label class="switch-row">
-        <span>忽略大小写和标点</span>
-        <input id="lenientMode" type="checkbox" checked>
-      </label>
-      <div class="dialog-actions">
-        <button value="cancel" class="ghost-btn">关闭</button>
-        <button id="resetBtn" value="cancel" class="danger-btn" type="button">清空全部答案</button>
-      </div>
-    </form>
-  </dialog>
-
-  <dialog id="jumpDialog">
-    <form method="dialog">
-      <h2>跳到题号</h2>
-      <input id="jumpInput" type="number" min="1" inputmode="numeric" placeholder="输入题号">
-      <div class="dialog-actions">
-        <button value="cancel" class="ghost-btn">取消</button>
-        <button id="jumpConfirm" value="cancel" class="primary-btn" type="button">跳转</button>
-      </div>
-    </form>
-  </dialog>
-
-  <script src="data.js"></script>
-  <script src="script.js"></script>
 </body>
 </html>
