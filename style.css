@@ -62,3 +62,5 @@ dialog form{padding:20px}dialog h2{margin-top:0}
 @media(min-width:761px) and (max-width:1050px){
   .words-grid{grid-template-columns:repeat(2,1fr)}
 }
+
+.top-actions{display:flex;gap:8px;align-items:center}.ghost-link{display:inline-flex;align-items:center;min-height:40px;border-radius:10px;padding:0 14px;font-weight:700;background:#fff;color:var(--ink);border:1px solid var(--line);text-decoration:none}
