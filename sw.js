@@ -1,5 +1,15 @@
-const CACHE='english-test-v7-timer';
-const ASSETS=['./','./index.html','./student.html','./admin.html','./admin.css','./admin.js','./style.css','./data.js','./script.js','./translations.js','./manifest.webmanifest'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
-self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))));
-self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));
+const CACHE = "english-test-ipad-v4";
+const ASSETS = [
+  "./","./index.html","./parent.html","./children.html","./student.html","./admin.html",
+  "./style.css","./account.js","./data.js","./student.js"
+];
+self.addEventListener("install", e => {
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+});
+self.addEventListener("activate", e => {
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(()=>self.clients.claim()));
+});
+self.addEventListener("fetch", e => {
+  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+});
