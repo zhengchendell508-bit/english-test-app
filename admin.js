@@ -20,38 +20,128 @@
     return {prompt:"", answer:"", audioText:"", mode:"chinese"};
   }
 
+  function cleanItem(item){
+    return {
+      prompt:String(item?.prompt || "").trim(),
+      answer:String(item?.answer || "").trim(),
+      audioText:String(item?.audioText || item?.answer || "").trim(),
+      mode:item?.mode === "audio" ? "audio" : "chinese"
+    };
+  }
+
   function normalizeLesson(lessonId){
     if(!bank[lessonId]){
       bank[lessonId] = {
         title:`Lesson ${lessonId}`,
-        words:Array.from({length:30}, blankItem),
-        phrases:Array.from({length:30}, blankItem),
-        sentences:Array.from({length:30}, blankItem)
+        words:[],
+        phrases:[],
+        sentences:[]
       };
     }
+
+    bank[lessonId].title = String(bank[lessonId].title || `Lesson ${lessonId}`);
+
     for(const type of Object.keys(TYPES)){
-      if(!Array.isArray(bank[lessonId][type])) bank[lessonId][type] = [];
-      bank[lessonId][type] = bank[lessonId][type].slice(0,30);
-      while(bank[lessonId][type].length < 30) bank[lessonId][type].push(blankItem());
-      bank[lessonId][type] = bank[lessonId][type].map(item => ({
-        prompt:String(item?.prompt || ""),
-        answer:String(item?.answer || ""),
-        audioText:String(item?.audioText || item?.answer || ""),
-        mode:item?.mode === "audio" ? "audio" : "chinese"
-      }));
+      const original = Array.isArray(bank[lessonId][type]) ? bank[lessonId][type] : [];
+      bank[lessonId][type] = original.slice(0,30).map(cleanItem);
+      while(bank[lessonId][type].length < 30){
+        bank[lessonId][type].push(blankItem());
+      }
     }
   }
 
-  function filledCount(type){
-    normalizeLesson(currentLessonId);
-    return bank[currentLessonId][type].filter(item => item.answer.trim()).length;
+  function normalizeAll(){
+    const ids = Object.keys(bank).map(Number).filter(Number.isFinite).sort((a,b)=>a-b);
+    if(!ids.length){
+      bank = {};
+      normalizeLesson(1);
+      currentLessonId = 1;
+      return;
+    }
+    ids.forEach(normalizeLesson);
+  }
+
+  function flattenBank(){
+    normalizeAll();
+    const pools = {words:[], phrases:[], sentences:[]};
+
+    for(const id of Object.keys(bank).map(Number).sort((a,b)=>a-b)){
+      for(const type of Object.keys(TYPES)){
+        for(const raw of bank[id][type]){
+          const item = cleanItem(raw);
+          if(item.answer) pools[type].push(item);
+        }
+      }
+    }
+    return pools;
+  }
+
+  function uniqueByEnglish(items){
+    const seen = new Set();
+    const output = [];
+    for(const raw of items){
+      const item = cleanItem(raw);
+      const key = item.answer.toLocaleLowerCase().replace(/\s+/g," ").trim();
+      if(!key || seen.has(key)) continue;
+      seen.add(key);
+      output.push(item);
+    }
+    return output;
+  }
+
+  function rebuildLessons(pools){
+    const cleaned = {
+      words: uniqueByEnglish(pools.words || []),
+      phrases: uniqueByEnglish(pools.phrases || []),
+      sentences: uniqueByEnglish(pools.sentences || [])
+    };
+
+    const lessonTotal = Math.max(
+      1,
+      Math.ceil(cleaned.words.length / 30),
+      Math.ceil(cleaned.phrases.length / 30),
+      Math.ceil(cleaned.sentences.length / 30)
+    );
+
+    const newBank = {};
+    for(let lessonId=1; lessonId<=lessonTotal; lessonId++){
+      newBank[lessonId] = {title:`Lesson ${lessonId}`};
+      for(const type of Object.keys(TYPES)){
+        const start = (lessonId - 1) * 30;
+        const items = cleaned[type].slice(start, start + 30).map(cleanItem);
+        while(items.length < 30) items.push(blankItem());
+        newBank[lessonId][type] = items;
+      }
+    }
+
+    bank = newBank;
+    currentLessonId = Math.min(currentLessonId, lessonTotal);
+    if(!bank[currentLessonId]) currentLessonId = 1;
+    return cleaned;
+  }
+
+  function filledCount(type, lessonId=currentLessonId){
+    normalizeLesson(lessonId);
+    return bank[lessonId][type].filter(item => item.answer.trim()).length;
+  }
+
+  function countAll(){
+    const pools = flattenBank();
+    return {
+      words: uniqueByEnglish(pools.words).length,
+      phrases: uniqueByEnglish(pools.phrases).length,
+      sentences: uniqueByEnglish(pools.sentences).length,
+      lessons: Object.keys(bank).length
+    };
   }
 
   function saveLocal(showMessage=true){
-    normalizeLesson(currentLessonId);
+    normalizeAll();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(bank));
     window.LESSON_BANK = bank;
-    if(showMessage) showDialog("保存成功", "题库已经保存在当前设备中。孩子测试页面重新打开后会读取最新题库。");
+    if(showMessage){
+      showDialog("保存成功", "题库已经保存在当前设备中。孩子测试页面重新打开后会读取最新题库。");
+    }
   }
 
   function showDialog(title, html){
@@ -60,20 +150,30 @@
     el("messageDialog").showModal();
   }
 
+  function escapeHtml(value){
+    return String(value).replace(/[&<>"']/g, ch => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    })[ch]);
+  }
+
   function renderLessons(){
+    normalizeAll();
     const ids = Object.keys(bank).map(Number).sort((a,b)=>a-b);
     el("lessonCount").textContent = `${ids.length} Lessons`;
     const list = el("lessonList");
     list.innerHTML = "";
 
     ids.forEach(id => {
-      normalizeLesson(id);
       const button = document.createElement("button");
       button.className = "lesson-item";
       if(id === currentLessonId) button.classList.add("active");
       button.innerHTML = `
         <strong>${escapeHtml(bank[id].title || `Lesson ${id}`)}</strong>
-        <small>${countLessonFilled(id)} / 90 已填写</small>
+        <small>
+          单 ${filledCount("words",id)}/30 ·
+          短 ${filledCount("phrases",id)}/30 ·
+          句 ${filledCount("sentences",id)}/30
+        </small>
       `;
       button.onclick = () => {
         currentLessonId = id;
@@ -83,10 +183,12 @@
     });
   }
 
-  function countLessonFilled(id){
-    normalizeLesson(id);
-    return ["words","phrases","sentences"]
-      .reduce((sum,type)=>sum + bank[id][type].filter(item=>item.answer.trim()).length,0);
+  function renderGlobalCounts(){
+    const totals = countAll();
+    el("totalWords").textContent = totals.words;
+    el("totalPhrases").textContent = totals.phrases;
+    el("totalSentences").textContent = totals.sentences;
+    el("totalLessons").textContent = totals.lessons;
   }
 
   function renderSummary(){
@@ -138,39 +240,33 @@
 
       chinese.addEventListener("input", () => {
         item.prompt = chinese.value;
-        renderSummary();
       });
+
       english.addEventListener("input", () => {
         item.answer = english.value;
         item.audioText = english.value;
+        tr.classList.toggle("row-complete", Boolean(english.value.trim()));
         renderSummary();
+        renderGlobalCounts();
         renderLessons();
       });
+
       mode.addEventListener("change", () => {
         item.mode = mode.value;
       });
+
       play.onclick = () => playEnglish(item.audioText || item.answer);
-
       tr.classList.toggle("row-complete", Boolean(item.answer.trim()));
-      english.addEventListener("input", () => {
-        tr.classList.toggle("row-complete", Boolean(english.value.trim()));
-      });
-
       body.appendChild(tr);
     });
   }
 
   function renderAll(){
     renderLessons();
+    renderGlobalCounts();
     renderSummary();
     renderTabs();
     renderRows();
-  }
-
-  function escapeHtml(value){
-    return String(value).replace(/[&<>"']/g, ch => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-    })[ch]);
   }
 
   function playEnglish(text){
@@ -190,13 +286,22 @@
     speechSynthesis.speak(utter);
   }
 
-  function parseLine(line){
-    const clean = line.trim();
+  function classifyEnglish(english){
+    const text = String(english || "").trim();
+    const wordCount = text.split(/\s+/).filter(Boolean).length;
+    if(wordCount <= 1) return "words";
+    if(wordCount <= 5) return "phrases";
+    return "sentences";
+  }
+
+  function parseTxtLine(line){
+    const clean = String(line || "").trim();
     if(!clean) return null;
 
     let english = clean;
     let chinese = "";
     const separators = ["\t","|","｜","="];
+
     for(const separator of separators){
       if(clean.includes(separator)){
         const parts = clean.split(separator);
@@ -209,46 +314,121 @@
     english = english.replace(/^\d+[\s.)、-]*/, "").trim();
     if(!english) return null;
 
-    const wordCount = english.split(/\s+/).filter(Boolean).length;
-    const type = wordCount === 1 ? "words" : (wordCount <= 5 ? "phrases" : "sentences");
     return {
-      type,
-      item:{prompt:chinese, answer:english, audioText:english, mode:"chinese"}
+      type: classifyEnglish(english),
+      item: {prompt:chinese, answer:english, audioText:english, mode:"chinese"}
     };
   }
 
-  function importLines(text){
-    normalizeLesson(currentLessonId);
-    const parsed = String(text || "").split(/\r?\n/).map(parseLine).filter(Boolean);
-    if(!parsed.length){
-      showDialog("没有找到题目", "请确认每一行至少包含一个英文单词、短语或句子。");
+  function parseTxt(text){
+    return String(text || "")
+      .split(/\r?\n/)
+      .map(parseTxtLine)
+      .filter(Boolean);
+  }
+
+  function parseJsTranslations(text){
+    const source = String(text || "").replace(/^\uFEFF/, "");
+    const assignmentMatch = source.match(
+      /(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*({[\s\S]*})\s*;?\s*$/
+    );
+
+    if(!assignmentMatch){
+      throw new Error("没有找到 JS 翻译对象。文件应类似：const CHINESE_TRANSLATIONS = { \"apple\": \"苹果\" };");
+    }
+
+    let objectText = assignmentMatch[1].trim();
+    objectText = objectText.replace(/,\s*}/g, "}");
+
+    let translations;
+    try{
+      translations = JSON.parse(objectText);
+    }catch{
+      throw new Error("JS 文件中的对象必须使用双引号，例如：\"apple\": \"苹果\"。");
+    }
+
+    if(!translations || Array.isArray(translations) || typeof translations !== "object"){
+      throw new Error("JS 文件中没有有效的英文—中文对照表。");
+    }
+
+    return Object.entries(translations)
+      .map(([english,chinese]) => ({
+        type: classifyEnglish(english),
+        item: {
+          prompt:String(chinese ?? "").trim(),
+          answer:String(english ?? "").trim(),
+          audioText:String(english ?? "").trim(),
+          mode:"chinese"
+        }
+      }))
+      .filter(row => row.item.answer);
+  }
+
+  function mergeImportedRows(rows, sourceLabel){
+    if(!rows.length){
+      showDialog("没有找到题目", "文件中没有可以导入的英文题目。");
       return;
     }
 
-    const grouped = {words:[],phrases:[],sentences:[]};
-    parsed.forEach(row => grouped[row.type].push(row.item));
+    const existing = flattenBank();
+    const before = {
+      words: uniqueByEnglish(existing.words).length,
+      phrases: uniqueByEnglish(existing.phrases).length,
+      sentences: uniqueByEnglish(existing.sentences).length
+    };
 
-    const report = [];
-    for(const type of Object.keys(TYPES)){
-      const items = grouped[type].slice(0,30);
-      if(items.length){
-        const existing = bank[currentLessonId][type];
-        let insertAt = existing.findIndex(item => !item.answer.trim());
-        if(insertAt < 0) insertAt = 0;
-        let inserted = 0;
-        for(const item of items){
-          if(insertAt >= 30) break;
-          existing[insertAt] = item;
-          insertAt++;
-          inserted++;
-        }
-        report.push(`${TYPES[type].label}：导入 ${inserted} 题`);
-      }
-    }
+    const imported = {words:[], phrases:[], sentences:[]};
+    rows.forEach(row => imported[row.type].push(cleanItem(row.item)));
+
+    const combined = {
+      words: [...existing.words, ...imported.words],
+      phrases: [...existing.phrases, ...imported.phrases],
+      sentences: [...existing.sentences, ...imported.sentences]
+    };
+
+    const cleaned = rebuildLessons(combined);
+    const added = {
+      words: cleaned.words.length - before.words,
+      phrases: cleaned.phrases.length - before.phrases,
+      sentences: cleaned.sentences.length - before.sentences
+    };
 
     saveLocal(false);
     renderAll();
-    showDialog("导入完成", report.join("<br>") + "<br><br>分类规则：1个词为单词，2–5个词为短语，超过5个词为句子。");
+
+    const duplicates = rows.length - added.words - added.phrases - added.sentences;
+    const latestId = Object.keys(bank).map(Number).sort((a,b)=>b-a)[0] || 1;
+    const latest = bank[latestId];
+
+    showDialog(
+      "导入并自动生成完成",
+      `<b>来源：</b>${escapeHtml(sourceLabel)}<br><br>` +
+      `新增单词：${added.words}<br>` +
+      `新增短语：${added.phrases}<br>` +
+      `新增句子：${added.sentences}<br>` +
+      `跳过重复：${Math.max(0,duplicates)}<br><br>` +
+      `现在共有 ${Object.keys(bank).length} 个 Lesson。<br>` +
+      `最后一课：单词 ${filledCount("words",latestId)}/30、` +
+      `短语 ${filledCount("phrases",latestId)}/30、` +
+      `句子 ${filledCount("sentences",latestId)}/30。`
+    );
+  }
+
+  async function importFile(file){
+    const text = await file.text();
+    const lowerName = file.name.toLowerCase();
+
+    try{
+      if(lowerName.endsWith(".js")){
+        mergeImportedRows(parseJsTranslations(text), file.name);
+      }else if(lowerName.endsWith(".txt")){
+        mergeImportedRows(parseTxt(text), file.name);
+      }else{
+        showDialog("不支持的文件", "请选择 .txt 或 .js 文件。");
+      }
+    }catch(error){
+      showDialog("导入失败", escapeHtml(error.message || "文件无法读取。"));
+    }
   }
 
   document.querySelectorAll(".admin-tab").forEach(btn => {
@@ -266,20 +446,11 @@
 
   el("saveBankBtn").onclick = () => saveLocal(true);
 
-  el("addLessonBtn").onclick = () => {
-    const ids = Object.keys(bank).map(Number);
-    const nextId = ids.length ? Math.max(...ids) + 1 : 1;
-    normalizeLesson(nextId);
-    currentLessonId = nextId;
-    renderAll();
-  };
-
-  el("clearSectionBtn").onclick = () => {
-    if(confirm(`确定清空当前 Lesson 的全部${TYPES[currentType].label}吗？`)){
-      bank[currentLessonId][currentType] = Array.from({length:30}, blankItem);
-      renderAll();
-    }
-  };
+  el("questionFile").addEventListener("change", async event => {
+    const file = event.target.files?.[0];
+    if(file) await importFile(file);
+    event.target.value = "";
+  });
 
   el("openPasteBtn").onclick = () => {
     el("pasteText").value = "";
@@ -288,33 +459,46 @@
 
   el("importTextBtn").onclick = () => {
     el("pasteDialog").close();
-    importLines(el("pasteText").value);
+    mergeImportedRows(parseTxt(el("pasteText").value), "粘贴的 TXT 内容");
   };
 
-  el("txtFile").addEventListener("change", async event => {
-    const file = event.target.files?.[0];
-    if(!file) return;
-    const text = await file.text();
-    importLines(text);
-    event.target.value = "";
-  });
+  el("clearSectionBtn").onclick = () => {
+    if(!confirm(`确定清空当前 Lesson 的全部${TYPES[currentType].label}吗？`)) return;
+    bank[currentLessonId][currentType] = Array.from({length:30}, blankItem);
+    saveLocal(false);
+    renderAll();
+  };
+
+  el("clearAllBtn").onclick = () => {
+    const confirmed = confirm("确定清空全部 Lesson 和全部题目吗？此操作不能撤销。");
+    if(!confirmed) return;
+    bank = {};
+    normalizeLesson(1);
+    currentLessonId = 1;
+    saveLocal(false);
+    renderAll();
+    showDialog("已经清空", "题库已经恢复为空白 Lesson 1，可以重新上传 TXT 或 JS 文件。");
+  };
 
   el("autoChineseBtn").onclick = () => {
-    const missing = Object.keys(TYPES).reduce((total,type) => {
-      normalizeLesson(currentLessonId);
-      return total + bank[currentLessonId][type].filter(item => item.answer.trim() && !item.prompt.trim()).length;
-    },0);
+    const pools = flattenBank();
+    let missing = 0;
+    for(const type of Object.keys(TYPES)){
+      missing += pools[type].filter(item => item.answer && !item.prompt).length;
+    }
 
     if(!missing){
-      showDialog("不需要补充", "当前 Lesson 中已填写英文的题目，都已经有中文提示。");
+      showDialog("中文资料完整", "所有已经填写英文的题目都带有中文提示。");
       return;
     }
+
     showDialog(
-      "自动补中文",
-      `当前有 <b>${missing}</b> 道题缺少中文。<br><br>` +
-      "这个按钮已经保留在家长后台中。正式连接翻译服务后，点击一次即可批量补充中文；目前为了避免产生错误翻译或额外费用，不会自动填写假的中文。"
+      "缺少中文提示",
+      `目前有 <b>${missing}</b> 道题缺少中文。<br><br>` +
+      "你可以上传包含“英文 | 中文”的 TXT，或者上传 CHINESE_TRANSLATIONS 格式的 JS 文件。"
     );
   };
 
+  normalizeAll();
   renderAll();
 })(); 

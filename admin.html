@@ -11,15 +11,15 @@
     <a href="parent.html" class="back-btn" aria-label="返回">‹</a>
     <div class="admin-title">
       <h1>题库管理</h1>
-      <p>家长可以在这里上传、检查和修改每一课的题目</p>
+      <p>上传 TXT 或 JS，自动分类并按每类 30 题生成 Lesson</p>
     </div>
 
     <div class="admin-top-actions">
       <label class="upload-btn">
-        上传 TXT
-        <input id="txtFile" type="file" accept=".txt,text/plain" hidden>
+        上传 TXT / JS
+        <input id="questionFile" type="file"
+          accept=".txt,.js,text/plain,text/javascript,application/javascript" hidden>
       </label>
-      <button id="addLessonBtn" class="ghost-btn">新增 Lesson</button>
       <button id="saveBankBtn" class="primary-btn">保存题库</button>
     </div>
   </header>
@@ -34,6 +34,22 @@
     </aside>
 
     <section class="admin-workspace">
+      <section class="panel import-status-panel">
+        <div class="import-status-heading">
+          <div>
+            <h2>自动生成状态</h2>
+            <p>新资料会接在现有资料后面，并自动跳过相同英文题目。</p>
+          </div>
+          <button id="openPasteBtn" class="ghost-btn">粘贴 TXT 内容</button>
+        </div>
+        <div class="global-counts">
+          <span>单词总数 <strong id="totalWords">0</strong></span>
+          <span>短语总数 <strong id="totalPhrases">0</strong></span>
+          <span>句子总数 <strong id="totalSentences">0</strong></span>
+          <span>Lesson 数量 <strong id="totalLessons">0</strong></span>
+        </div>
+      </section>
+
       <div class="panel lesson-summary">
         <div>
           <label for="lessonTitleInput">当前课程</label>
@@ -49,19 +65,19 @@
 
       <section class="panel import-panel">
         <div>
-          <h2>快速导入</h2>
-          <p>一行一题。可以只写英文，也可以使用“英文 | 中文”。系统会自动分类。</p>
+          <h2>支持的上传格式</h2>
+          <p>TXT：每行“英文 | 中文”；JS：支持 CHINESE_TRANSLATIONS 对照表格式。</p>
         </div>
         <div class="import-actions">
-          <button id="openPasteBtn" class="ghost-btn">粘贴文字</button>
-          <button id="autoChineseBtn" class="ghost-btn">自动补中文</button>
+          <button id="autoChineseBtn" class="ghost-btn">检查缺少中文</button>
+          <button id="clearAllBtn" class="danger-outline">清空全部题库</button>
         </div>
       </section>
 
       <nav class="admin-tabs" aria-label="题库分类">
-        <button class="admin-tab active" data-type="words">单词 <span id="wordsTabCount">30</span></button>
-        <button class="admin-tab" data-type="phrases">短语 <span id="phrasesTabCount">30</span></button>
-        <button class="admin-tab" data-type="sentences">句子 <span id="sentencesTabCount">30</span></button>
+        <button class="admin-tab active" data-type="words">单词 <span id="wordsTabCount">0</span></button>
+        <button class="admin-tab" data-type="phrases">短语 <span id="phrasesTabCount">0</span></button>
+        <button class="admin-tab" data-type="sentences">句子 <span id="sentencesTabCount">0</span></button>
       </nav>
 
       <section class="panel table-panel">
@@ -93,12 +109,13 @@
 
   <dialog id="pasteDialog" class="admin-dialog">
     <form method="dialog">
-      <h2>粘贴题目</h2>
+      <h2>粘贴 TXT 题目</h2>
       <p>每行一题。示例：<b>apple | 苹果</b></p>
-      <textarea id="pasteText" rows="12" placeholder="apple | 苹果&#10;good morning | 早上好&#10;How are you today? | 你今天怎么样？"></textarea>
+      <textarea id="pasteText" rows="12"
+        placeholder="apple | 苹果&#10;good morning | 早上好&#10;How are you today? | 你今天怎么样？"></textarea>
       <div class="dialog-actions">
         <button value="cancel" class="ghost-btn">取消</button>
-        <button id="importTextBtn" type="button" class="primary-btn">自动分类并导入</button>
+        <button id="importTextBtn" type="button" class="primary-btn">自动分类并生成 Lesson</button>
       </div>
     </form>
   </dialog>

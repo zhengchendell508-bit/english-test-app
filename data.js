@@ -1,28 +1,23 @@
 /*
-  题库读取顺序：
-  1. 优先读取家长后台保存在浏览器 localStorage 中的题库
-  2. 如果还没有保存，则使用下面的 Lesson 1 示例结构
+  全新题库默认从空白 Lesson 1 开始。
+
+  家长后台支持：
+  1. TXT：每行“英文 | 中文”
+  2. JS：const CHINESE_TRANSLATIONS = { "english": "中文" };
+
+  上传后会自动分类，并按每类 30 条依次生成 Lesson 1、Lesson 2……
 */
 const DEFAULT_LESSON_BANK = {
   1: {
     title: "Lesson 1",
-    words: Array.from({length:30}, (_,i) => ({
-      prompt: "",
-      answer: "",
-      audioText: "",
-      mode: "chinese"
+    words: Array.from({length:30}, () => ({
+      prompt: "", answer: "", audioText: "", mode: "chinese"
     })),
-    phrases: Array.from({length:30}, (_,i) => ({
-      prompt: "",
-      answer: "",
-      audioText: "",
-      mode: "chinese"
+    phrases: Array.from({length:30}, () => ({
+      prompt: "", answer: "", audioText: "", mode: "chinese"
     })),
-    sentences: Array.from({length:30}, (_,i) => ({
-      prompt: "",
-      answer: "",
-      audioText: "",
-      mode: "chinese"
+    sentences: Array.from({length:30}, () => ({
+      prompt: "", answer: "", audioText: "", mode: "chinese"
     }))
   }
 };
