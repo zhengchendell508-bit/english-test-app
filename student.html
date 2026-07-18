@@ -62,27 +62,35 @@
   <dialog id="studentLoginDialog" class="login-dialog">
     <section class="account-card">
       <div class="login-mark">E</div>
-      <h2>选择或创建孩子账号</h2>
-      <p class="account-intro">每个孩子的答案、进度和提交记录会分别保存，互不影响。</p>
+      <h2>孩子账号</h2>
+      <p class="account-intro">使用已有账号登录，或者创建一个新的孩子账号。</p>
 
-      <div class="account-tabs" role="tablist" aria-label="孩子账号操作">
-        <button id="existingAccountTab" class="account-tab active" type="button" role="tab">选择已有孩子</button>
-        <button id="createAccountTab" class="account-tab" type="button" role="tab">创建新孩子</button>
+      <div class="account-tabs" role="tablist" aria-label="账号操作">
+        <button id="loginAccountTab" class="account-tab active" type="button" role="tab">登录</button>
+        <button id="createAccountTab" class="account-tab" type="button" role="tab">创建账号</button>
       </div>
 
-      <section id="existingAccountPanel" class="account-panel">
-        <div id="studentAccountList" class="student-account-list"></div>
-        <div id="noStudentAccounts" class="no-accounts hidden">还没有孩子账号，请点击“创建新孩子”。</div>
-      </section>
-
-      <form id="createStudentForm" class="account-panel hidden">
-        <label for="newStudentName">孩子姓名</label>
-        <input id="newStudentName" type="text" maxlength="40" autocomplete="name" placeholder="请输入孩子的名字">
-        <div id="createStudentError" class="login-error" aria-live="polite"></div>
-        <button class="primary-btn login-confirm" type="submit">创建并登录</button>
+      <form id="loginStudentForm" class="account-panel account-form">
+        <label for="loginStudentName">用户名</label>
+        <input id="loginStudentName" type="text" maxlength="40" autocomplete="username" placeholder="请输入孩子用户名">
+        <label for="loginStudentPassword">密码</label>
+        <input id="loginStudentPassword" type="password" minlength="4" maxlength="30" autocomplete="current-password" placeholder="请输入密码">
+        <div id="loginStudentError" class="login-error" aria-live="polite"></div>
+        <button class="primary-btn login-confirm" type="submit">登录并进入测试</button>
       </form>
 
-      <small>不需要密码。创建后会直接进入测试页面，填写内容将实时自动保存。</small>
+      <form id="createStudentForm" class="account-panel account-form hidden">
+        <label for="newStudentName">创建用户名</label>
+        <input id="newStudentName" type="text" maxlength="40" autocomplete="username" placeholder="请输入新的孩子用户名">
+        <label for="newStudentPassword">创建密码</label>
+        <input id="newStudentPassword" type="password" minlength="4" maxlength="30" autocomplete="new-password" placeholder="至少4个字符">
+        <label for="confirmStudentPassword">确认密码</label>
+        <input id="confirmStudentPassword" type="password" minlength="4" maxlength="30" autocomplete="new-password" placeholder="请再次输入密码">
+        <div id="createStudentError" class="login-error" aria-live="polite"></div>
+        <button class="primary-btn login-confirm" type="submit">创建账号并进入测试</button>
+      </form>
+
+      <small>账号创建后会立即登录。用户名必须准确输入，答案会实时自动保存到当前孩子账号。</small>
     </section>
   </dialog>
 

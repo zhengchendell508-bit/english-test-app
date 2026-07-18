@@ -77,16 +77,33 @@ function formatDateTime(iso){
   }).format(date);
 }
 
-function createStudent(name){
+async function hashPassword(password){
+  const text = String(password || "");
+  if (window.crypto?.subtle && window.TextEncoder) {
+    const bytes = new TextEncoder().encode(text);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+  }
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `fallback_${(hash >>> 0).toString(36)}`;
+}
+
+async function createStudent(name, password){
   const cleanName = normalizeStudentName(name);
   const duplicate = Object.values(students).find(student => normalizeStudentName(student.name).toLocaleLowerCase() === cleanName.toLocaleLowerCase());
   if (duplicate) return {duplicate};
 
   const id = `student_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
   const startedAt = nowIso();
+  const passwordHash = await hashPassword(password);
   const student = {
     id,
     name:cleanName,
+    passwordHash,
     createdAt:startedAt,
     startedAt,
     sessionId:`session_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
@@ -139,43 +156,36 @@ function activateStudent(id, student){
 }
 
 function switchAccountPanel(mode){
-  const existing = mode === "existing";
-  el("existingAccountTab").classList.toggle("active", existing);
-  el("createAccountTab").classList.toggle("active", !existing);
-  el("existingAccountPanel").classList.toggle("hidden", !existing);
-  el("createStudentForm").classList.toggle("hidden", existing);
+  const loginMode = mode === "login";
+  el("loginAccountTab").classList.toggle("active", loginMode);
+  el("createAccountTab").classList.toggle("active", !loginMode);
+  el("loginStudentForm").classList.toggle("hidden", !loginMode);
+  el("createStudentForm").classList.toggle("hidden", loginMode);
+  el("loginStudentError").textContent = "";
   el("createStudentError").textContent = "";
-  if (!existing) setTimeout(() => el("newStudentName").focus(), 80);
+  setTimeout(() => el(loginMode ? "loginStudentName" : "newStudentName").focus(), 80);
 }
 
-function renderStudentAccounts(){
-  const list = el("studentAccountList");
-  const accounts = Object.values(students).sort((a,b) => String(a.createdAt).localeCompare(String(b.createdAt)));
-  list.innerHTML = "";
-  el("noStudentAccounts").classList.toggle("hidden", accounts.length > 0);
-  accounts.forEach(student => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "student-account-btn";
-    const first = (normalizeStudentName(student.name).charAt(0) || "孩").toUpperCase();
-    button.innerHTML = `<span class="student-avatar">${escapeHtml(first)}</span><span class="student-account-copy"><strong>${escapeHtml(student.name)}</strong><small>创建时间：${formatDateTime(student.createdAt)}</small></span><span class="student-account-arrow">›</span>`;
-    button.addEventListener("click", () => {
-      const ready = prepareStudentSession(student.id);
-      if (ready) activateStudent(student.id, ready);
-    });
-    list.appendChild(button);
-  });
+function findStudentByName(name){
+  const normalized = normalizeStudentName(name).toLocaleLowerCase();
+  return Object.values(students).find(student =>
+    normalizeStudentName(student.name).toLocaleLowerCase() === normalized
+  ) || null;
 }
 
-function openLogin(mode="existing"){
-  renderStudentAccounts();
+function openLogin(mode="login"){
+  el("loginStudentName").value = "";
+  el("loginStudentPassword").value = "";
   el("newStudentName").value = "";
+  el("newStudentPassword").value = "";
+  el("confirmStudentPassword").value = "";
+  el("loginStudentError").textContent = "";
   el("createStudentError").textContent = "";
   el("studentSessionCard").classList.add("hidden");
   el("examContent").classList.add("hidden");
   el("settingsBtn").disabled = true;
   document.body.classList.add("student-locked");
-  switchAccountPanel(Object.keys(students).length ? mode : "create");
+  switchAccountPanel(mode);
   if (!loginDialog.open) loginDialog.showModal();
 }
 
@@ -351,19 +361,56 @@ document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", (
   render();
 }));
 
-el("existingAccountTab").addEventListener("click", () => switchAccountPanel("existing"));
+el("loginAccountTab").addEventListener("click", () => switchAccountPanel("login"));
 el("createAccountTab").addEventListener("click", () => switchAccountPanel("create"));
 
-el("createStudentForm").addEventListener("submit", event => {
+el("loginStudentForm").addEventListener("submit", async event => {
   event.preventDefault();
-  const name = normalizeStudentName(el("newStudentName").value);
-  if (!name) {
-    el("createStudentError").textContent = "请输入孩子姓名。";
+  const name = normalizeStudentName(el("loginStudentName").value);
+  const password = el("loginStudentPassword").value;
+  if (!name || !password) {
+    el("loginStudentError").textContent = "请输入用户名和密码。";
     return;
   }
-  const result = createStudent(name);
+  const student = findStudentByName(name);
+  if (!student) {
+    el("loginStudentError").textContent = "用户名不存在，请检查拼写或创建新账号。";
+    return;
+  }
+  if (!student.passwordHash) {
+    el("loginStudentError").textContent = "这个旧账号还没有密码，请联系家长重新创建账号。";
+    return;
+  }
+  const enteredHash = await hashPassword(password);
+  if (enteredHash !== student.passwordHash) {
+    el("loginStudentError").textContent = "用户名或密码不正确。";
+    el("loginStudentPassword").select();
+    return;
+  }
+  const ready = prepareStudentSession(student.id);
+  if (ready) activateStudent(student.id, ready);
+});
+
+el("createStudentForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const name = normalizeStudentName(el("newStudentName").value);
+  const password = el("newStudentPassword").value;
+  const confirmPassword = el("confirmStudentPassword").value;
+  if (!name) {
+    el("createStudentError").textContent = "请输入孩子用户名。";
+    return;
+  }
+  if (password.length < 4) {
+    el("createStudentError").textContent = "密码至少需要4个字符。";
+    return;
+  }
+  if (password !== confirmPassword) {
+    el("createStudentError").textContent = "两次输入的密码不一致。";
+    return;
+  }
+  const result = await createStudent(name, password);
   if (result.duplicate) {
-    el("createStudentError").textContent = "这个孩子账号已经存在，请从已有孩子中选择。";
+    el("createStudentError").textContent = "这个用户名已经存在，请返回登录。";
     return;
   }
   activateStudent(result.id, result.student);
@@ -429,4 +476,4 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").ca
 
 loginDialog.addEventListener("cancel", event => event.preventDefault());
 
-openLogin("existing");
+openLogin("login");
