@@ -1,9 +1,0 @@
-{
-  "name": "新概念英语答题 App",
-  "short_name": "英语答题",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#f3f6f9",
-  "theme_color": "#24415f",
-  "icons": []
-}
