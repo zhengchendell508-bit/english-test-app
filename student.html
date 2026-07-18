@@ -12,7 +12,7 @@
   <header class="topbar">
     <div>
       <h1>新概念英语答题 App</h1>
-      <p>孩子独立答题与记录</p>
+      <p>孩子独立账号 · 答案实时自动保存</p>
     </div>
     <div class="top-actions">
       <a class="ghost-link" href="admin.html">管理后台</a>
@@ -21,71 +21,69 @@
   </header>
 
   <main>
-    <section id="studentSessionCard" class="student-card hidden" aria-live="polite">
+    <section id="studentSessionCard" class="student-card hidden">
       <div class="student-identity">
         <span class="field-label">当前孩子</span>
         <strong id="activeStudentName">—</strong>
       </div>
       <div class="student-identity">
-        <span class="field-label">开始时间（自动记录）</span>
+        <span class="field-label">本次开始时间（系统自动记录）</span>
         <strong id="startTimeText">—</strong>
       </div>
       <div class="student-session-actions">
-        <div class="save-status" id="saveStatus">已自动保存</div>
+        <span class="save-status" id="saveStatus">已自动保存</span>
         <button id="switchStudentBtn" class="ghost-btn" type="button">切换孩子</button>
       </div>
     </section>
 
-    <section id="examContent" class="exam-content hidden">
+    <div id="examContent" class="hidden">
       <nav class="tabs" aria-label="题目部分">
-        <button class="tab active" data-section="words">单词 <span>150</span></button>
-        <button class="tab" data-section="phrases">短语 <span>200</span></button>
-        <button class="tab" data-section="sentences">句子 <span>200</span></button>
+        <button class="tab active" data-section="words">单词 <span>0</span></button>
+        <button class="tab" data-section="phrases">短语 <span>0</span></button>
+        <button class="tab" data-section="sentences">句子 <span>0</span></button>
       </nav>
 
       <section class="toolbar">
         <div>
           <strong id="sectionTitle">第一部分：单词</strong>
-          <span id="progressText">已填写 0 / 150</span>
+          <span id="progressText">已填写 0 / 0</span>
         </div>
         <div class="toolbar-actions">
-          <button id="jumpBtn" class="ghost-btn">跳到题号</button>
-          <button id="gradeBtn" class="primary-btn">提交批改</button>
+          <button id="jumpBtn" class="ghost-btn" type="button">跳到题号</button>
+          <button id="gradeBtn" class="primary-btn" type="button">提交批改</button>
         </div>
       </section>
 
       <section id="resultPanel" class="result-panel hidden"></section>
       <section id="questions" class="questions words-grid"></section>
-    </section>
+    </div>
   </main>
 
   <dialog id="studentLoginDialog" class="login-dialog">
-    <div class="account-card">
-      <div class="login-mark" aria-hidden="true">E</div>
-      <h2>选择孩子账号</h2>
-      <p class="account-intro">选择已经创建的孩子，或创建一个新账号。确认后直接进入测试。</p>
+    <section class="account-card">
+      <div class="login-mark">E</div>
+      <h2>选择或创建孩子账号</h2>
+      <p class="account-intro">每个孩子的答案、进度和提交记录会分别保存，互不影响。</p>
 
-      <div class="account-tabs" role="tablist" aria-label="账号操作">
-        <button id="existingAccountTab" class="account-tab active" type="button">选择已有孩子</button>
-        <button id="createAccountTab" class="account-tab" type="button">创建新孩子</button>
+      <div class="account-tabs" role="tablist" aria-label="孩子账号操作">
+        <button id="existingAccountTab" class="account-tab active" type="button" role="tab">选择已有孩子</button>
+        <button id="createAccountTab" class="account-tab" type="button" role="tab">创建新孩子</button>
       </div>
 
       <section id="existingAccountPanel" class="account-panel">
         <div id="studentAccountList" class="student-account-list"></div>
-        <div id="noStudentAccounts" class="no-accounts hidden">
-          还没有孩子账号，请先创建一个。
-        </div>
+        <div id="noStudentAccounts" class="no-accounts hidden">还没有孩子账号，请点击“创建新孩子”。</div>
       </section>
 
       <form id="createStudentForm" class="account-panel hidden">
         <label for="newStudentName">孩子姓名</label>
-        <input id="newStudentName" autocomplete="name" maxlength="40" placeholder="请输入孩子的名字" required>
-        <div id="createStudentError" class="login-error" role="alert"></div>
+        <input id="newStudentName" type="text" maxlength="40" autocomplete="name" placeholder="请输入孩子的名字">
+        <div id="createStudentError" class="login-error" aria-live="polite"></div>
         <button class="primary-btn login-confirm" type="submit">创建并登录</button>
       </form>
 
-      <small>每次填写答案都会自动保存；开始时间和提交时间由系统自动记录。</small>
-    </div>
+      <small>不需要密码。创建后会直接进入测试页面，填写内容将实时自动保存。</small>
+    </section>
   </dialog>
 
   <dialog id="settingsDialog">
