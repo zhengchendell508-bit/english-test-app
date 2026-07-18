@@ -60,16 +60,32 @@
   </main>
 
   <dialog id="studentLoginDialog" class="login-dialog">
-    <form id="studentLoginForm" class="login-card">
+    <div class="account-card">
       <div class="login-mark" aria-hidden="true">E</div>
-      <h2>孩子登录</h2>
-      <p>请输入孩子自己的姓名。确认后，答案、对错和提交记录会单独保存。</p>
-      <label for="loginStudentName">孩子姓名</label>
-      <input id="loginStudentName" autocomplete="name" maxlength="40" placeholder="请输入姓名" required>
-      <div id="loginError" class="login-error" role="alert"></div>
-      <button class="primary-btn login-confirm" type="submit">确认并开始考试</button>
-      <small>开始时间和提交时间由系统自动记录，孩子不需要填写。</small>
-    </form>
+      <h2>选择孩子账号</h2>
+      <p class="account-intro">选择已经创建的孩子，或创建一个新账号。确认后直接进入测试。</p>
+
+      <div class="account-tabs" role="tablist" aria-label="账号操作">
+        <button id="existingAccountTab" class="account-tab active" type="button">选择已有孩子</button>
+        <button id="createAccountTab" class="account-tab" type="button">创建新孩子</button>
+      </div>
+
+      <section id="existingAccountPanel" class="account-panel">
+        <div id="studentAccountList" class="student-account-list"></div>
+        <div id="noStudentAccounts" class="no-accounts hidden">
+          还没有孩子账号，请先创建一个。
+        </div>
+      </section>
+
+      <form id="createStudentForm" class="account-panel hidden">
+        <label for="newStudentName">孩子姓名</label>
+        <input id="newStudentName" autocomplete="name" maxlength="40" placeholder="请输入孩子的名字" required>
+        <div id="createStudentError" class="login-error" role="alert"></div>
+        <button class="primary-btn login-confirm" type="submit">创建并登录</button>
+      </form>
+
+      <small>每次填写答案都会自动保存；开始时间和提交时间由系统自动记录。</small>
+    </div>
   </dialog>
 
   <dialog id="settingsDialog">

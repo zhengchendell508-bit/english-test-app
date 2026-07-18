@@ -77,32 +77,21 @@ function formatDateTime(iso){
   }).format(date);
 }
 
-function getOrCreateStudent(name){
+function createStudent(name){
   const cleanName = normalizeStudentName(name);
-  const id = createStudentId(cleanName);
-  const existing = students[id];
-  if (existing) {
-    existing.name = cleanName;
-    existing.answers = normalizeAnswerArrays(existing.answers);
-    existing.currentSection = sections[existing.currentSection] ? existing.currentSection : "words";
-    existing.submissions = Array.isArray(existing.submissions) ? existing.submissions : [];
-    const isContinuingSameSession = localStorage.getItem(ACTIVE_STUDENT_KEY) === id && existing.sessionActive === true;
-    if (!isContinuingSameSession) {
-      existing.startedAt = nowIso();
-      existing.sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
-    }
-    existing.sessionActive = true;
-    return {id, student:existing};
-  }
+  const duplicate = Object.values(students).find(student => normalizeStudentName(student.name).toLocaleLowerCase() === cleanName.toLocaleLowerCase());
+  if (duplicate) return {duplicate};
 
+  const id = `student_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
+  const startedAt = nowIso();
   const student = {
     id,
     name:cleanName,
-    createdAt:nowIso(),
-    startedAt:nowIso(),
+    createdAt:startedAt,
+    startedAt,
     sessionId:`session_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
     sessionActive:true,
-    updatedAt:nowIso(),
+    updatedAt:startedAt,
     currentSection:"words",
     answers:makeEmptyAnswers(),
     submissions:[]
@@ -110,6 +99,20 @@ function getOrCreateStudent(name){
   students[id] = student;
   persistStudents();
   return {id, student};
+}
+
+function prepareStudentSession(id){
+  const student = students[id];
+  if (!student) return null;
+  student.answers = normalizeAnswerArrays(student.answers);
+  student.currentSection = sections[student.currentSection] ? student.currentSection : "words";
+  student.submissions = Array.isArray(student.submissions) ? student.submissions : [];
+  student.startedAt = nowIso();
+  student.sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+  student.sessionActive = true;
+  student.updatedAt = nowIso();
+  persistStudents();
+  return student;
 }
 
 function persistStudents(){
@@ -135,15 +138,45 @@ function activateStudent(id, student){
   render();
 }
 
-function openLogin(prefill=""){
-  el("loginStudentName").value = prefill;
-  el("loginError").textContent = "";
+function switchAccountPanel(mode){
+  const existing = mode === "existing";
+  el("existingAccountTab").classList.toggle("active", existing);
+  el("createAccountTab").classList.toggle("active", !existing);
+  el("existingAccountPanel").classList.toggle("hidden", !existing);
+  el("createStudentForm").classList.toggle("hidden", existing);
+  el("createStudentError").textContent = "";
+  if (!existing) setTimeout(() => el("newStudentName").focus(), 80);
+}
+
+function renderStudentAccounts(){
+  const list = el("studentAccountList");
+  const accounts = Object.values(students).sort((a,b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+  list.innerHTML = "";
+  el("noStudentAccounts").classList.toggle("hidden", accounts.length > 0);
+  accounts.forEach(student => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "student-account-btn";
+    const first = (normalizeStudentName(student.name).charAt(0) || "孩").toUpperCase();
+    button.innerHTML = `<span class="student-avatar">${escapeHtml(first)}</span><span class="student-account-copy"><strong>${escapeHtml(student.name)}</strong><small>创建时间：${formatDateTime(student.createdAt)}</small></span><span class="student-account-arrow">›</span>`;
+    button.addEventListener("click", () => {
+      const ready = prepareStudentSession(student.id);
+      if (ready) activateStudent(student.id, ready);
+    });
+    list.appendChild(button);
+  });
+}
+
+function openLogin(mode="existing"){
+  renderStudentAccounts();
+  el("newStudentName").value = "";
+  el("createStudentError").textContent = "";
   el("studentSessionCard").classList.add("hidden");
   el("examContent").classList.add("hidden");
   el("settingsBtn").disabled = true;
   document.body.classList.add("student-locked");
+  switchAccountPanel(Object.keys(students).length ? mode : "create");
   if (!loginDialog.open) loginDialog.showModal();
-  setTimeout(() => el("loginStudentName").focus(), 80);
 }
 
 function normalize(v){
@@ -318,15 +351,22 @@ document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", (
   render();
 }));
 
-el("studentLoginForm").addEventListener("submit", event => {
+el("existingAccountTab").addEventListener("click", () => switchAccountPanel("existing"));
+el("createAccountTab").addEventListener("click", () => switchAccountPanel("create"));
+
+el("createStudentForm").addEventListener("submit", event => {
   event.preventDefault();
-  const name = normalizeStudentName(el("loginStudentName").value);
+  const name = normalizeStudentName(el("newStudentName").value);
   if (!name) {
-    el("loginError").textContent = "请输入孩子姓名。";
+    el("createStudentError").textContent = "请输入孩子姓名。";
     return;
   }
-  const {id, student} = getOrCreateStudent(name);
-  activateStudent(id, student);
+  const result = createStudent(name);
+  if (result.duplicate) {
+    el("createStudentError").textContent = "这个孩子账号已经存在，请从已有孩子中选择。";
+    return;
+  }
+  activateStudent(result.id, result.student);
 });
 
 el("switchStudentBtn").addEventListener("click", () => {
@@ -381,9 +421,12 @@ el("jumpConfirm").addEventListener("click", () => {
   }
 });
 
+function escapeHtml(value){
+  return String(value).replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[char]));
+}
+
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
 
 loginDialog.addEventListener("cancel", event => event.preventDefault());
 
-const rememberedStudent = activeStudentId && students[activeStudentId];
-openLogin(rememberedStudent?.name || "");
+openLogin("existing");
