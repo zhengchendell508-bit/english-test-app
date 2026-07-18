@@ -19,6 +19,8 @@ let activeStudent = null;
 let state = makeEmptyAnswers();
 let currentSection = "words";
 let saveTimer;
+let examTimer = null;
+let timerLastTick = 0;
 
 const sharedSettings = readJson(SETTINGS_KEY, { allowReveal:false, lenientMode:true });
 el("allowReveal").checked = Boolean(sharedSettings.allowReveal);
@@ -111,7 +113,10 @@ async function createStudent(name, password){
     updatedAt:startedAt,
     currentSection:"words",
     answers:makeEmptyAnswers(),
-    submissions:[]
+    submissions:[],
+    elapsedSeconds:0,
+    timerCompleted:false,
+    timerCompletedAt:null
   };
   students[id] = student;
   persistStudents();
@@ -124,6 +129,8 @@ function prepareStudentSession(id){
   student.answers = normalizeAnswerArrays(student.answers);
   student.currentSection = sections[student.currentSection] ? student.currentSection : "words";
   student.submissions = Array.isArray(student.submissions) ? student.submissions : [];
+  student.elapsedSeconds = Number.isFinite(Number(student.elapsedSeconds)) ? Math.max(0, Math.floor(Number(student.elapsedSeconds))) : 0;
+  student.timerCompleted = Boolean(student.timerCompleted);
   student.startedAt = nowIso();
   student.sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
   student.sessionActive = true;
@@ -147,12 +154,14 @@ function activateStudent(id, student){
 
   el("activeStudentName").textContent = activeStudent.name;
   el("startTimeText").textContent = formatDateTime(activeStudent.startedAt);
+  updateElapsedTimeDisplay();
   el("studentSessionCard").classList.remove("hidden");
   el("examContent").classList.remove("hidden");
   el("settingsBtn").disabled = false;
   document.body.classList.remove("student-locked");
   if (loginDialog.open) loginDialog.close();
   render();
+  if (!activeStudent.timerCompleted) startExamTimer();
 }
 
 function switchAccountPanel(mode){
@@ -187,6 +196,62 @@ function openLogin(mode="login"){
   document.body.classList.add("student-locked");
   switchAccountPanel(mode);
   if (!loginDialog.open) loginDialog.showModal();
+}
+
+
+function formatElapsedTime(totalSeconds){
+  const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remaining = seconds % 60;
+  return [hours, minutes, remaining].map(value => String(value).padStart(2, "0")).join(":");
+}
+
+function updateElapsedTimeDisplay(){
+  if (!el("elapsedTimeText")) return;
+  el("elapsedTimeText").textContent = formatElapsedTime(activeStudent?.elapsedSeconds || 0);
+}
+
+function persistTimerTick(message){
+  if (!activeStudent) return;
+  activeStudent.updatedAt = nowIso();
+  students[activeStudentId] = activeStudent;
+  persistStudents();
+  updateElapsedTimeDisplay();
+  if (message) {
+    saveStatus.textContent = message;
+    saveStatus.style.color = "var(--ok)";
+  }
+}
+
+function startExamTimer(){
+  if (!activeStudent || activeStudent.timerCompleted || examTimer) return;
+  timerLastTick = Date.now();
+  examTimer = window.setInterval(() => {
+    if (!activeStudent || document.hidden || activeStudent.timerCompleted) return;
+    const now = Date.now();
+    const added = Math.max(1, Math.floor((now - timerLastTick) / 1000));
+    activeStudent.elapsedSeconds = (Number(activeStudent.elapsedSeconds) || 0) + added;
+    timerLastTick += added * 1000;
+    persistTimerTick();
+  }, 1000);
+}
+
+function pauseExamTimer(message="计时已自动保存"){
+  if (examTimer) {
+    clearInterval(examTimer);
+    examTimer = null;
+  }
+  timerLastTick = 0;
+  if (activeStudent) persistTimerTick(message);
+}
+
+function completeExamTimer(submittedAt){
+  if (!activeStudent) return;
+  pauseExamTimer();
+  activeStudent.timerCompleted = true;
+  activeStudent.timerCompletedAt = submittedAt;
+  persistTimerTick("用时与提交记录已保存");
 }
 
 function normalize(v){
@@ -321,6 +386,7 @@ function grade(){
   });
 
   const submittedAt = nowIso();
+  completeExamTimer(submittedAt);
   const score = Math.round(correct / sec.data.length * 100);
   const submission = {
     id:`submission_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
@@ -330,6 +396,8 @@ function grade(){
     sectionTitle:sec.title,
     startedAt:activeStudent.startedAt,
     submittedAt,
+    elapsedSeconds:activeStudent.elapsedSeconds,
+    elapsedTime:formatElapsedTime(activeStudent.elapsedSeconds),
     correct,
     wrong,
     blank,
@@ -348,7 +416,8 @@ function grade(){
       <span class="badge">未答 ${blank}</span>
       <span class="badge">分数 ${score} / 100</span>
     </div>
-    <p class="submission-time">提交时间：${formatDateTime(submittedAt)}（系统自动记录）</p>`;
+    <p class="submission-time">提交时间：${formatDateTime(submittedAt)}（系统自动记录）</p>
+    <p class="submission-time">累计答题用时：${formatElapsedTime(activeStudent.elapsedSeconds)}</p>`;
   resultPanel.classList.remove("hidden");
   resultPanel.scrollIntoView({behavior:"smooth",block:"start"});
   saveAll("提交记录已保存");
@@ -418,6 +487,7 @@ el("createStudentForm").addEventListener("submit", async event => {
 
 el("switchStudentBtn").addEventListener("click", () => {
   if (activeStudent) {
+    pauseExamTimer();
     activeStudent.sessionActive = false;
     activeStudent.sessionEndedAt = nowIso();
     saveAll();
@@ -471,6 +541,20 @@ el("jumpConfirm").addEventListener("click", () => {
 function escapeHtml(value){
   return String(value).replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[char]));
 }
+
+document.addEventListener("visibilitychange", () => {
+  if (!activeStudent || activeStudent.timerCompleted) return;
+  if (document.hidden) pauseExamTimer();
+  else startExamTimer();
+});
+
+window.addEventListener("pagehide", () => {
+  if (activeStudent && !activeStudent.timerCompleted) pauseExamTimer();
+});
+
+window.addEventListener("beforeunload", () => {
+  if (activeStudent && !activeStudent.timerCompleted) pauseExamTimer();
+});
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
 
