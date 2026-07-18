@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>选择孩子</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="simple-shell">
+    <header class="simple-header">
+      <a href="index.html" class="back-btn">‹</a>
+      <div><h1>选择孩子</h1><p>点击自己的名字进入测试</p></div>
+    </header>
+    <section class="panel">
+      <div id="emptyState" class="empty-state hidden">
+        <div class="empty-emoji">👨‍👩‍👧</div>
+        <h2>还没有创建孩子</h2>
+        <p>请先由家长创建孩子。</p>
+        <a class="primary-btn inline-btn" href="parent.html">进入家长页面创建</a>
+      </div>
+      <div id="childrenState" class="hidden">
+        <h2>请选择孩子</h2>
+        <div id="childrenList" class="children-list"></div>
+      </div>
+    </section>
+  </main>
+  <script src="account.js"></script>
+  <script>
+    const manage = new URLSearchParams(location.search).get("manage") === "1";
+    const children = getChildren();
+    const empty = document.getElementById("emptyState");
+    const state = document.getElementById("childrenState");
+    const list = document.getElementById("childrenList");
+
+    if(!children.length){
+      empty.classList.remove("hidden");
+    } else {
+      state.classList.remove("hidden");
+      children.forEach(child => {
+        const item = document.createElement("div");
+        item.className = "child-choice";
+        const first = child.name.slice(0,1).toUpperCase();
+        item.innerHTML = `
+          <span class="avatar">${first}</span>
+          <span class="child-copy"><strong></strong><small>选择后进入测试</small></span>
+          ${manage ? '<button class="delete-child">删除</button>' : '<b class="choice-arrow">›</b>'}
+        `;
+        item.querySelector("strong").textContent = child.name;
+        if(manage){
+          item.querySelector(".delete-child").onclick = () => {
+            if(confirm(`确定删除“${child.name}”吗？`)){
+              removeChild(child.id);
+              location.reload();
+            }
+          };
+        } else {
+          item.onclick = () => {
+            setActiveChild(child);
+            location.href = "student.html";
+          };
+        }
+        list.appendChild(item);
+      });
+    }
+  </script>
+</body>
+</html>
