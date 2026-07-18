@@ -1,7 +1,7 @@
-const CACHE = "english-test-ipad-v4";
+const CACHE = "english-test-parent-admin-v5";
 const ASSETS = [
   "./","./index.html","./parent.html","./children.html","./student.html","./admin.html",
-  "./style.css","./account.js","./data.js","./student.js"
+  "./style.css","./account.js","./data.js","./student.js","./admin.js"
 ];
 self.addEventListener("install", e => {
   self.skipWaiting();
