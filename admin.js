@@ -210,14 +210,59 @@
     el("tableHint").textContent = TYPES[currentType].hint;
   }
 
+  function updateBatchSelectionState(){
+    const boxes = [...document.querySelectorAll(".row-select")];
+    const selected = boxes.filter(box => box.checked);
+    el("selectedRowsCount").textContent = `已选择 ${selected.length} 题`;
+
+    const selectAll = el("selectAllRows");
+    selectAll.checked = boxes.length > 0 && selected.length === boxes.length;
+    selectAll.indeterminate = selected.length > 0 && selected.length < boxes.length;
+  }
+
+  function selectedRowIndexes(){
+    return [...document.querySelectorAll(".row-select:checked")]
+      .map(box => Number(box.dataset.index))
+      .filter(Number.isInteger);
+  }
+
+  function applyModeToSelected(mode){
+    const indexes = selectedRowIndexes();
+    if(!indexes.length){
+      showDialog("还没有选择题目", "请先勾选需要修改的题目，或者点击“全选本页”。");
+      return;
+    }
+
+    indexes.forEach(index => {
+      const item = bank[currentLessonId][currentType][index];
+      if(item) item.mode = mode;
+    });
+
+    document.querySelectorAll(".bank-table tbody tr").forEach((row,index) => {
+      if(indexes.includes(index)){
+        const select = row.querySelector(".mode-select");
+        if(select) select.value = mode;
+      }
+    });
+
+    saveLocal(false);
+    showDialog(
+      "批量设置完成",
+      `已将 <b>${indexes.length}</b> 道题设置为“${mode === "audio" ? "播放声音" : "显示中文"}”。`
+    );
+  }
+
   function renderRows(){
     normalizeLesson(currentLessonId);
     const body = el("bankRows");
     body.innerHTML = "";
+    el("selectAllRows").checked = false;
+    el("selectAllRows").indeterminate = false;
 
     bank[currentLessonId][currentType].forEach((item,index) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
+        <td class="select-cell"><input class="row-select" type="checkbox" data-index="${index}" aria-label="选择第 ${index+1} 题"></td>
         <td class="number-cell">${index+1}</td>
         <td><input class="table-input chinese-input" placeholder="输入中文提示"></td>
         <td><input class="table-input english-input" placeholder="输入英文答案"></td>
@@ -230,6 +275,7 @@
         <td><button type="button" class="play-row-btn" title="播放英文">🔊</button></td>
       `;
 
+      const rowSelect = tr.querySelector(".row-select");
       const chinese = tr.querySelector(".chinese-input");
       const english = tr.querySelector(".english-input");
       const mode = tr.querySelector(".mode-select");
@@ -238,6 +284,8 @@
       chinese.value = item.prompt;
       english.value = item.answer;
       mode.value = item.mode;
+
+      rowSelect.addEventListener("change", updateBatchSelectionState);
 
       chinese.addEventListener("input", () => {
         item.prompt = chinese.value;
@@ -260,6 +308,8 @@
       tr.classList.toggle("row-complete", Boolean(item.answer.trim()));
       body.appendChild(tr);
     });
+
+    updateBatchSelectionState();
   }
 
   function renderAll(){
@@ -462,6 +512,30 @@
     el("pasteDialog").close();
     mergeImportedRows(parseTxt(el("pasteText").value), "粘贴的 TXT 内容");
   };
+
+  el("selectAllRows").addEventListener("change", event => {
+    document.querySelectorAll(".row-select").forEach(box => {
+      box.checked = event.target.checked;
+    });
+    updateBatchSelectionState();
+  });
+
+  el("selectAllBtn").onclick = () => {
+    document.querySelectorAll(".row-select").forEach(box => {
+      box.checked = true;
+    });
+    updateBatchSelectionState();
+  };
+
+  el("clearSelectionBtn").onclick = () => {
+    document.querySelectorAll(".row-select").forEach(box => {
+      box.checked = false;
+    });
+    updateBatchSelectionState();
+  };
+
+  el("batchChineseBtn").onclick = () => applyModeToSelected("chinese");
+  el("batchAudioBtn").onclick = () => applyModeToSelected("audio");
 
   el("clearSectionBtn").onclick = () => {
     if(!confirm(`确定清空当前 Lesson 的全部${TYPES[currentType].label}吗？`)) return;

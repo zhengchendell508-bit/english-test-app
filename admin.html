@@ -94,10 +94,25 @@
           <button id="clearSectionBtn" class="danger-outline">清空本部分</button>
         </div>
 
+        <div class="batch-mode-toolbar" aria-label="批量设置出题方式">
+          <label class="select-all-label">
+            <input id="selectAllRows" type="checkbox">
+            <span>全选本页</span>
+          </label>
+          <button id="selectAllBtn" type="button" class="ghost-btn compact-btn">全选</button>
+          <button id="clearSelectionBtn" type="button" class="ghost-btn compact-btn">取消全选</button>
+          <span id="selectedRowsCount" class="selected-count">已选择 0 题</span>
+          <div class="batch-mode-actions">
+            <button id="batchChineseBtn" type="button" class="ghost-btn">所选设为显示中文</button>
+            <button id="batchAudioBtn" type="button" class="ghost-btn">所选设为播放声音</button>
+          </div>
+        </div>
+
         <div class="bank-table-wrap">
           <table class="bank-table">
             <thead>
               <tr>
+                <th class="select-col"><span class="sr-only">选择</span></th>
                 <th class="number-col">编号</th>
                 <th>中文提示</th>
                 <th>英文答案</th>
