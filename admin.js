@@ -1,5 +1,5 @@
 (() => {
-  const STORAGE_KEY = "englishLessonBankV1";
+  const STORAGE_KEY = "englishLessonBankV2";
   const TYPES = {
     words: {label:"单词", hint:"孩子看到中文，并输入英文；也可以将题目设为听音题。"},
     phrases: {label:"短语", hint:"孩子看到中文短语，并输入对应英文。"},
@@ -96,12 +96,13 @@
       sentences: uniqueByEnglish(pools.sentences || [])
     };
 
-    const lessonTotal = Math.max(
-      1,
-      Math.ceil(cleaned.words.length / 30),
-      Math.ceil(cleaned.phrases.length / 30),
-      Math.ceil(cleaned.sentences.length / 30)
-    );
+    // 分课规则：
+    // 单词、短语、句子三类中，只要任何一类进入下一个 30 条区间，
+    // 就生成对应的新 Lesson。其他不足的类别保持空白。
+    const wordLessons = Math.ceil(cleaned.words.length / 30);
+    const phraseLessons = Math.ceil(cleaned.phrases.length / 30);
+    const sentenceLessons = Math.ceil(cleaned.sentences.length / 30);
+    const lessonTotal = Math.max(1, wordLessons, phraseLessons, sentenceLessons);
 
     const newBank = {};
     for(let lessonId=1; lessonId<=lessonTotal; lessonId++){

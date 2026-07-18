@@ -1,4 +1,4 @@
-const CACHE = "english-test-txt-js-v6";
+const CACHE = "english-test-correct-lessons-v7";
 const ASSETS = [
   "./","./index.html","./parent.html","./children.html","./student.html","./admin.html",
   "./style.css","./account.js","./data.js","./student.js","./admin.js"

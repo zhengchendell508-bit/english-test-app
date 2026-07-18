@@ -229,3 +229,23 @@ pre{overflow:auto;background:#f4f6f9;padding:14px;border-radius:12px}
   .import-status-heading{align-items:flex-start;flex-direction:column}
   .global-counts{grid-template-columns:repeat(2,1fr)}
 }
+
+
+/* 低调放置危险操作，避免误触 */
+.more-actions{position:relative}
+.more-actions summary{
+  min-height:42px;display:flex;align-items:center;padding:0 14px;
+  border:1px solid var(--line);border-radius:11px;background:#fff;
+  color:var(--muted);font-weight:700;cursor:pointer;list-style:none
+}
+.more-actions summary::-webkit-details-marker{display:none}
+.more-actions-menu{
+  position:absolute;right:0;top:48px;z-index:20;min-width:170px;
+  padding:8px;background:#fff;border:1px solid var(--line);
+  border-radius:12px;box-shadow:0 10px 28px rgba(25,39,60,.14)
+}
+.quiet-danger-btn{
+  width:100%;min-height:40px;border:0;border-radius:9px;
+  background:#fff;color:#9b5b5b;font-weight:650;cursor:pointer
+}
+.quiet-danger-btn:hover{background:#fff4f4;color:#a32e2e}

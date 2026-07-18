@@ -23,7 +23,7 @@ const DEFAULT_LESSON_BANK = {
 };
 
 try{
-  const saved = localStorage.getItem("englishLessonBankV1");
+  const saved = localStorage.getItem("englishLessonBankV2");
   window.LESSON_BANK = saved ? JSON.parse(saved) : DEFAULT_LESSON_BANK;
 }catch{
   window.LESSON_BANK = DEFAULT_LESSON_BANK;
