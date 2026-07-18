@@ -8,42 +8,69 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="student-locked">
   <header class="topbar">
     <div>
       <h1>新概念英语答题 App</h1>
-      <p>Lesson 1–10 · iPad 版</p>
+      <p>孩子独立答题与记录</p>
     </div>
-    <div class="top-actions"><a class="ghost-link" href="admin.html">管理后台</a><button id="settingsBtn" class="ghost-btn">设置</button></div>
+    <div class="top-actions">
+      <a class="ghost-link" href="admin.html">管理后台</a>
+      <button id="settingsBtn" class="ghost-btn" disabled>设置</button>
+    </div>
   </header>
 
   <main>
-    <section class="student-card">
-      <label>姓名<input id="studentName" autocomplete="name" placeholder="请输入姓名"></label>
-      <label>日期<input id="testDate" type="date"></label>
-      <div class="save-status" id="saveStatus">已自动保存</div>
-    </section>
-
-    <nav class="tabs" aria-label="题目部分">
-      <button class="tab active" data-section="words">单词 <span>150</span></button>
-      <button class="tab" data-section="phrases">短语 <span>200</span></button>
-      <button class="tab" data-section="sentences">句子 <span>200</span></button>
-    </nav>
-
-    <section class="toolbar">
-      <div>
-        <strong id="sectionTitle">第一部分：单词</strong>
-        <span id="progressText">已填写 0 / 150</span>
+    <section id="studentSessionCard" class="student-card hidden" aria-live="polite">
+      <div class="student-identity">
+        <span class="field-label">当前孩子</span>
+        <strong id="activeStudentName">—</strong>
       </div>
-      <div class="toolbar-actions">
-        <button id="jumpBtn" class="ghost-btn">跳到题号</button>
-        <button id="gradeBtn" class="primary-btn">提交批改</button>
+      <div class="student-identity">
+        <span class="field-label">开始时间（自动记录）</span>
+        <strong id="startTimeText">—</strong>
+      </div>
+      <div class="student-session-actions">
+        <div class="save-status" id="saveStatus">已自动保存</div>
+        <button id="switchStudentBtn" class="ghost-btn" type="button">切换孩子</button>
       </div>
     </section>
 
-    <section id="resultPanel" class="result-panel hidden"></section>
-    <section id="questions" class="questions words-grid"></section>
+    <section id="examContent" class="exam-content hidden">
+      <nav class="tabs" aria-label="题目部分">
+        <button class="tab active" data-section="words">单词 <span>150</span></button>
+        <button class="tab" data-section="phrases">短语 <span>200</span></button>
+        <button class="tab" data-section="sentences">句子 <span>200</span></button>
+      </nav>
+
+      <section class="toolbar">
+        <div>
+          <strong id="sectionTitle">第一部分：单词</strong>
+          <span id="progressText">已填写 0 / 150</span>
+        </div>
+        <div class="toolbar-actions">
+          <button id="jumpBtn" class="ghost-btn">跳到题号</button>
+          <button id="gradeBtn" class="primary-btn">提交批改</button>
+        </div>
+      </section>
+
+      <section id="resultPanel" class="result-panel hidden"></section>
+      <section id="questions" class="questions words-grid"></section>
+    </section>
   </main>
+
+  <dialog id="studentLoginDialog" class="login-dialog">
+    <form id="studentLoginForm" class="login-card">
+      <div class="login-mark" aria-hidden="true">E</div>
+      <h2>孩子登录</h2>
+      <p>请输入孩子自己的姓名。确认后，答案、对错和提交记录会单独保存。</p>
+      <label for="loginStudentName">孩子姓名</label>
+      <input id="loginStudentName" autocomplete="name" maxlength="40" placeholder="请输入姓名" required>
+      <div id="loginError" class="login-error" role="alert"></div>
+      <button class="primary-btn login-confirm" type="submit">确认并开始考试</button>
+      <small>开始时间和提交时间由系统自动记录，孩子不需要填写。</small>
+    </form>
+  </dialog>
 
   <dialog id="settingsDialog">
     <form method="dialog">
@@ -58,7 +85,7 @@
       </label>
       <div class="dialog-actions">
         <button value="cancel" class="ghost-btn">关闭</button>
-        <button id="resetBtn" value="cancel" class="danger-btn" type="button">清空全部答案</button>
+        <button id="resetBtn" value="cancel" class="danger-btn" type="button">清空当前孩子答案</button>
       </div>
     </form>
   </dialog>
