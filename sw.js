@@ -1,4 +1,4 @@
-const CACHE='english-test-v5';
+const CACHE='english-test-v6';
 const ASSETS=['./','./index.html','./student.html','./admin.html','./admin.css','./admin.js','./style.css','./data.js','./script.js','./translations.js','./manifest.webmanifest'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))));
