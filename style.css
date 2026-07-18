@@ -272,3 +272,43 @@ pre{overflow:auto;background:#f4f6f9;padding:14px;border-radius:12px}
   padding:0 12px;
   white-space:nowrap;
 }
+
+
+/* 孩子测试页面内的 Lesson 选择框 */
+.lesson-heading-group{
+  display:flex;
+  align-items:flex-end;
+  gap:18px;
+  flex-wrap:wrap;
+}
+.student-lesson-picker{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  min-width:150px;
+}
+.student-lesson-picker span{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:700;
+}
+.student-lesson-picker select{
+  min-height:42px;
+  padding:0 36px 0 12px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#fff;
+  color:var(--text);
+  font:inherit;
+  font-weight:750;
+  cursor:pointer;
+}
+@media (max-width:700px){
+  .lesson-heading-group{
+    width:100%;
+    align-items:stretch;
+  }
+  .student-lesson-picker{
+    width:100%;
+  }
+}

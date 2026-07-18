@@ -49,9 +49,15 @@
   <main class="exam-shell">
     <section class="lesson-card">
       <div class="lesson-toolbar">
-        <div>
-          <h1 id="sectionTitle">Lesson 1 - 单词</h1>
-          <p id="sectionSub">第 1 部分，共 3 部分（单词 30 题、短语 30 题、句子 30 题）</p>
+        <div class="lesson-heading-group">
+          <div>
+            <h1 id="sectionTitle">Lesson 1 - 单词</h1>
+            <p id="sectionSub">第 1 部分，共 3 部分（单词 30 题、短语 30 题、句子 30 题）</p>
+          </div>
+          <label class="student-lesson-picker">
+            <span>选择 Lesson</span>
+            <select id="lessonSelect" aria-label="选择要测试的 Lesson"></select>
+          </label>
         </div>
         <div class="toolbar-actions">
           <button id="jumpBtn" class="ghost-btn">跳到题号</button>

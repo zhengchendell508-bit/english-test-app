@@ -1,4 +1,4 @@
-const CACHE = "english-test-batch-select-v8";
+const CACHE = "english-test-student-lesson-picker-v9";
 const ASSETS = [
   "./","./index.html","./parent.html","./children.html","./student.html","./admin.html",
   "./style.css","./account.js","./data.js","./student.js","./admin.js"

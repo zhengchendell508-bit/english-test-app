@@ -5,7 +5,18 @@
     return;
   }
 
-  const LESSON_ID = 1;
+  const lessonIds = Object.keys(window.LESSON_BANK || {})
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((a,b) => a-b);
+
+  if(!lessonIds.length) throw new Error("没有找到 Lesson 题库");
+
+  const requestedLessonId = Number(new URLSearchParams(location.search).get("lesson"));
+  const LESSON_ID = lessonIds.includes(requestedLessonId)
+    ? requestedLessonId
+    : lessonIds[0];
+
   const PAGE_SIZE = 10;
   const lesson = window.LESSON_BANK?.[LESSON_ID];
   if(!lesson) throw new Error("没有找到 Lesson 题库");
@@ -47,6 +58,15 @@
 
   const el = id => document.getElementById(id);
   el("activeChildName").textContent = activeChild.name;
+
+  const lessonSelect = el("lessonSelect");
+  lessonIds.forEach(id => {
+    const option = document.createElement("option");
+    option.value = String(id);
+    option.textContent = window.LESSON_BANK[id]?.title || `Lesson ${id}`;
+    option.selected = id === LESSON_ID;
+    lessonSelect.appendChild(option);
+  });
 
   let timerState;
   try { timerState = JSON.parse(localStorage.getItem(timerKey) || "null"); }
@@ -305,6 +325,17 @@
       clearInterval(timerInterval);
     }
   }
+
+  lessonSelect.addEventListener("change", () => {
+    const nextLessonId = Number(lessonSelect.value);
+    if(!lessonIds.includes(nextLessonId) || nextLessonId === LESSON_ID) return;
+
+    save();
+    persistTimer();
+    const url = new URL(location.href);
+    url.searchParams.set("lesson", String(nextLessonId));
+    location.href = url.toString();
+  });
 
   document.querySelectorAll(".progress-tab").forEach(btn => {
     btn.onclick = () => switchSection(btn.dataset.section);
