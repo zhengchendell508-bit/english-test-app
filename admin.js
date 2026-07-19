@@ -22,10 +22,14 @@
   let currentType = "words";
 
   const initialStatus = window.LessonDataService.getStatus();
-  setCloudStatus(
-    initialStatus.source === "cloud" ? "✓ 云端题库已连接" : "当前使用本地缓存",
-    initialStatus.source
-  );
+  if (initialStatus.source === "local-migration") {
+    setCloudStatus("✓ 已把电脑原题库首次同步到云端", "cloud");
+  } else {
+    setCloudStatus(
+      initialStatus.source === "cloud" ? "✓ 云端题库已连接" : "当前使用本地缓存",
+      initialStatus.source
+    );
+  }
 
   function cloneBank(value){
     return JSON.parse(JSON.stringify(value || {}));

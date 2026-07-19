@@ -1,4 +1,4 @@
-const CACHE = "english-test-firebase-lessons-v1";
+const CACHE = "english-test-firebase-migration-v2";
 const ASSETS = [
   "./",
   "./index.html",

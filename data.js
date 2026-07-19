@@ -75,6 +75,44 @@
     return output;
   }
 
+
+  function countMeaningfulItems(bank) {
+    let count = 0;
+    Object.values(bank || {}).forEach(lesson => {
+      ["words", "phrases", "sentences"].forEach(type => {
+        (lesson?.[type] || []).forEach(item => {
+          if (
+            String(item?.prompt || "").trim() ||
+            String(item?.answer || "").trim() ||
+            String(item?.audioText || "").trim()
+          ) {
+            count += 1;
+          }
+        });
+      });
+    });
+    return count;
+  }
+
+  function hasMeaningfulData(bank) {
+    return countMeaningfulItems(bank) > 0;
+  }
+
+  function chooseInitialBank(localBank, cloudBank) {
+    const localCount = countMeaningfulItems(localBank);
+    const cloudCount = countMeaningfulItems(cloudBank);
+
+    if (localCount > 0 && cloudCount === 0) {
+      return { bank: localBank, source: "local-migration", shouldUpload: true };
+    }
+
+    if (cloudCount > 0) {
+      return { bank: cloudBank, source: "cloud", shouldUpload: false };
+    }
+
+    return { bank: localBank, source: "local", shouldUpload: false };
+  }
+
   function readLocalBank() {
     try {
       const saved = localStorage.getItem(LOCAL_BANK_KEY);
@@ -130,25 +168,51 @@
     }
 
     try {
-      const snapshot = await firestore
-        .collection(CLOUD_COLLECTION)
-        .doc(CLOUD_DOCUMENT)
-        .get();
+      const ref = firestore.collection(CLOUD_COLLECTION).doc(CLOUD_DOCUMENT);
+      const snapshot = await ref.get();
 
       if (!snapshot.exists) {
+        if (hasMeaningfulData(localBank)) {
+          await ref.set({
+            schemaVersion: 2,
+            bank: normalizeBank(localBank),
+            migratedFromLocalAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+          });
+          lastSource = "local-migration";
+          lastError = null;
+          return clone(localBank);
+        }
+
         lastSource = "local";
         return clone(localBank);
       }
 
       const cloudBank = normalizeBank(snapshot.data()?.bank);
-      writeLocalBank(cloudBank);
-      lastSource = "cloud";
+      const decision = chooseInitialBank(localBank, cloudBank);
+
+      if (decision.shouldUpload) {
+        await ref.set({
+          schemaVersion: 2,
+          bank: normalizeBank(localBank),
+          migratedFromLocalAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        writeLocalBank(localBank);
+        lastSource = "local-migration";
+        lastError = null;
+        return clone(localBank);
+      }
+
+      writeLocalBank(decision.bank);
+      lastSource = decision.source;
       lastError = null;
-      return clone(cloudBank);
+      return clone(decision.bank);
     } catch (error) {
       lastError = error;
       lastSource = "local";
-      console.error("云端题库读取失败，将使用本地缓存。", error);
+      console.error("云端题库读取或首次迁移失败，将使用本地缓存。", error);
       return clone(localBank);
     }
   }
@@ -197,6 +261,7 @@
     saveBank,
     getStatus,
     normalizeBank,
-    readLocalBank
+    readLocalBank,
+    countMeaningfulItems
   });
 })();
