@@ -359,59 +359,6 @@
         speak(item.audioText || item.answer);
       });
       top.appendChild(audioButton);
-
-      // 仅在“单词 + 听声音”题型旁增加按住查看中文。
-      // 原喇叭按钮及播放逻辑保持不变。
-      if (currentSection === "words") {
-        const meaningControl = document.createElement("span");
-        meaningControl.className = "word-meaning-control";
-
-        const meaningButton = document.createElement("button");
-        meaningButton.type = "button";
-        meaningButton.className = "word-meaning-btn";
-        meaningButton.textContent = "按住看中文";
-        meaningButton.setAttribute("aria-label", `按住查看第${index + 1}题中文意思`);
-        meaningButton.setAttribute("aria-expanded", "false");
-
-        const meaningPopup = document.createElement("span");
-        meaningPopup.className = "word-meaning-popup";
-        meaningPopup.textContent = item.prompt || "暂无中文意思";
-        meaningPopup.setAttribute("role", "tooltip");
-
-        const showMeaning = event => {
-          if (event) event.preventDefault();
-          meaningControl.classList.add("show-meaning");
-          meaningButton.setAttribute("aria-expanded", "true");
-          if (event?.pointerId !== undefined && meaningButton.setPointerCapture) {
-            try { meaningButton.setPointerCapture(event.pointerId); } catch (_) {}
-          }
-        };
-
-        const hideMeaning = event => {
-          if (event) event.preventDefault();
-          meaningControl.classList.remove("show-meaning");
-          meaningButton.setAttribute("aria-expanded", "false");
-        };
-
-        meaningButton.addEventListener("pointerdown", showMeaning);
-        meaningButton.addEventListener("pointerup", hideMeaning);
-        meaningButton.addEventListener("pointercancel", hideMeaning);
-        meaningButton.addEventListener("lostpointercapture", hideMeaning);
-        meaningButton.addEventListener("pointerleave", event => {
-          if (event.buttons === 0) hideMeaning(event);
-        });
-        meaningButton.addEventListener("contextmenu", event => event.preventDefault());
-        meaningButton.addEventListener("keydown", event => {
-          if (event.key === " " || event.key === "Enter") showMeaning(event);
-        });
-        meaningButton.addEventListener("keyup", event => {
-          if (event.key === " " || event.key === "Enter") hideMeaning(event);
-        });
-        meaningButton.addEventListener("blur", hideMeaning);
-
-        meaningControl.append(meaningButton, meaningPopup);
-        top.appendChild(meaningControl);
-      }
     } else {
       const prompt = document.createElement("span");
       prompt.className = "chinese-prompt";
