@@ -1,4 +1,4 @@
-(() => {
+(async () => {
   const STORAGE_KEY = "englishLessonBankV2";
   const TYPES = {
     words: {label:"单词", hint:"孩子看到中文，并输入英文；也可以将题目设为听音题。"},
@@ -6,11 +6,26 @@
     sentences: {label:"句子", hint:"孩子看到中文句子，并输入完整英文句子。"}
   };
 
-  let bank = cloneBank(window.LESSON_BANK || {});
+  const el = id => document.getElementById(id);
+
+  function setCloudStatus(text, state = "") {
+    const status = el("cloudSyncStatus");
+    if (!status) return;
+    status.textContent = text;
+    status.dataset.state = state;
+  }
+
+  setCloudStatus("正在连接云端…", "loading");
+  const loadedBank = await window.LessonDataService.loadBank();
+  let bank = cloneBank(loadedBank);
   let currentLessonId = Number(Object.keys(bank)[0] || 1);
   let currentType = "words";
 
-  const el = id => document.getElementById(id);
+  const initialStatus = window.LessonDataService.getStatus();
+  setCloudStatus(
+    initialStatus.source === "cloud" ? "✓ 云端题库已连接" : "当前使用本地缓存",
+    initialStatus.source
+  );
 
   function cloneBank(value){
     return JSON.parse(JSON.stringify(value || {}));
@@ -136,13 +151,32 @@
     };
   }
 
-  function saveLocal(showMessage=true){
+  async function saveLocal(showMessage = true) {
     normalizeAll();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(bank));
-    window.LESSON_BANK = bank;
-    if(showMessage){
-      showDialog("保存成功", "题库已经保存在当前设备中。孩子测试页面重新打开后会读取最新题库。");
+    setCloudStatus("正在同步到云端…", "loading");
+
+    const result = await window.LessonDataService.saveBank(bank);
+    window.LESSON_BANK = cloneBank(bank);
+
+    if (result.ok) {
+      setCloudStatus("✓ 已同步到云端", "cloud");
+      if (showMessage) {
+        showDialog(
+          "保存成功",
+          "题库已经同步到云端。电脑和 iPad 重新打开测试页面后，会读取同一份 Lesson、中文提示和声音模式。"
+        );
+      }
+    } else {
+      setCloudStatus("云端失败，已保存本机", "local");
+      if (showMessage) {
+        showDialog(
+          "云端保存失败",
+          "题库已经保存在当前设备，但暂时没有写入 Firestore。请检查网络和 Firestore 测试规则后再点一次“保存题库”。"
+        );
+      }
     }
+
+    return result;
   }
 
   function showDialog(title, html){
@@ -226,7 +260,7 @@
       .filter(Number.isInteger);
   }
 
-  function applyModeToSelected(mode){
+  async function applyModeToSelected(mode){
     const indexes = selectedRowIndexes();
     if(!indexes.length){
       showDialog("还没有选择题目", "请先勾选需要修改的题目，或者点击“全选本页”。");
@@ -245,7 +279,7 @@
       }
     });
 
-    saveLocal(false);
+    await saveLocal(false);
     showDialog(
       "批量设置完成",
       `已将 <b>${indexes.length}</b> 道题设置为“${mode === "audio" ? "播放声音" : "显示中文"}”。`
@@ -415,7 +449,7 @@
       .filter(row => row.item.answer);
   }
 
-  function mergeImportedRows(rows, sourceLabel){
+  async function mergeImportedRows(rows, sourceLabel){
     if(!rows.length){
       showDialog("没有找到题目", "文件中没有可以导入的英文题目。");
       return;
@@ -444,7 +478,7 @@
       sentences: cleaned.sentences.length - before.sentences
     };
 
-    saveLocal(false);
+    await saveLocal(false);
     renderAll();
 
     const duplicates = rows.length - added.words - added.phrases - added.sentences;
@@ -471,9 +505,9 @@
 
     try{
       if(lowerName.endsWith(".js")){
-        mergeImportedRows(parseJsTranslations(text), file.name);
+        await mergeImportedRows(parseJsTranslations(text), file.name);
       }else if(lowerName.endsWith(".txt")){
-        mergeImportedRows(parseTxt(text), file.name);
+        await mergeImportedRows(parseTxt(text), file.name);
       }else{
         showDialog("不支持的文件", "请选择 .txt 或 .js 文件。");
       }
@@ -495,7 +529,7 @@
     renderLessons();
   });
 
-  el("saveBankBtn").onclick = () => saveLocal(true);
+  el("saveBankBtn").onclick = async () => { await saveLocal(true); };
 
   el("questionFile").addEventListener("change", async event => {
     const file = event.target.files?.[0];
@@ -508,7 +542,7 @@
     el("pasteDialog").showModal();
   };
 
-  el("importTextBtn").onclick = () => {
+  el("importTextBtn").onclick = async () => {
     el("pasteDialog").close();
     mergeImportedRows(parseTxt(el("pasteText").value), "粘贴的 TXT 内容");
   };
@@ -534,23 +568,23 @@
     updateBatchSelectionState();
   };
 
-  el("batchChineseBtn").onclick = () => applyModeToSelected("chinese");
-  el("batchAudioBtn").onclick = () => applyModeToSelected("audio");
+  el("batchChineseBtn").onclick = async () => { await applyModeToSelected("chinese"); };
+  el("batchAudioBtn").onclick = async () => { await applyModeToSelected("audio"); };
 
-  el("clearSectionBtn").onclick = () => {
+  el("clearSectionBtn").onclick = async () => {
     if(!confirm(`确定清空当前 Lesson 的全部${TYPES[currentType].label}吗？`)) return;
     bank[currentLessonId][currentType] = Array.from({length:30}, blankItem);
-    saveLocal(false);
+    await saveLocal(false);
     renderAll();
   };
 
-  el("clearAllBtn").onclick = () => {
+  el("clearAllBtn").onclick = async () => {
     const confirmed = confirm("确定清空全部 Lesson 和全部题目吗？此操作不能撤销。");
     if(!confirmed) return;
     bank = {};
     normalizeLesson(1);
     currentLessonId = 1;
-    saveLocal(false);
+    await saveLocal(false);
     renderAll();
     showDialog("已经清空", "题库已经恢复为空白 Lesson 1，可以重新上传 TXT 或 JS 文件。");
   };

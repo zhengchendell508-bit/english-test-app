@@ -312,3 +312,18 @@ pre{overflow:auto;background:#f4f6f9;padding:14px;border-radius:12px}
     width:100%;
   }
 }
+
+
+/* Firebase Lesson 云端同步状态 */
+.cloud-sync-status{
+  display:inline-flex;align-items:center;min-height:40px;padding:0 12px;
+  border:1px solid var(--line);border-radius:11px;background:#f5f7fa;
+  color:#5c6878;font-size:13px;font-weight:700;white-space:nowrap
+}
+.cloud-sync-status[data-state="cloud"]{background:#eaf8ef;border-color:#a8dfbd;color:#167341}
+.cloud-sync-status[data-state="local"]{background:#fff7e8;border-color:#efd39b;color:#8a5b00}
+.cloud-sync-status[data-state="loading"]{background:#edf3ff;border-color:#bdd0f7;color:#235ec9}
+
+@media(max-width:900px){
+  .cloud-sync-status{order:-1}
+}

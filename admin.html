@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>家长题库管理</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260718-cloud-1">
 </head>
 <body class="admin-body">
   <header class="admin-topbar">
@@ -15,6 +15,7 @@
     </div>
 
     <div class="admin-top-actions">
+      <span id="cloudSyncStatus" class="cloud-sync-status">正在连接云端…</span>
       <label class="upload-btn">
         上传 TXT / JS
         <input id="questionFile" type="file"
@@ -150,7 +151,9 @@
     </form>
   </dialog>
 
-  <script src="data.js"></script>
-  <script src="admin.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="data.js?v=20260718-cloud-1"></script>
+  <script src="admin.js?v=20260718-cloud-1"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-const CACHE = "english-test-lesson-clean-v10";
+const CACHE = "english-test-firebase-lessons-v1";
 const ASSETS = [
   "./",
   "./index.html",

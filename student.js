@@ -1,4 +1,4 @@
-(() => {
+(async () => {
   "use strict";
 
   const PAGE_SIZE = 10;
@@ -16,7 +16,10 @@
     return;
   }
 
-  const bank = window.LESSON_BANK || {};
+  const sectionTitleElement = document.getElementById("sectionTitle");
+  if (sectionTitleElement) sectionTitleElement.textContent = "正在同步云端题库…";
+
+  const bank = await window.LessonDataService.loadBank();
   const lessonIds = Object.keys(bank)
     .map(Number)
     .filter(id => Number.isInteger(id) && bank[id])
@@ -354,12 +357,14 @@
       prompt.textContent = item.prompt || "中文提示";
       top.appendChild(prompt);
 
-      if (item.audioText) {
+      const playableText = item.audioText || item.answer;
+      if (playableText) {
         const smallAudio = document.createElement("button");
         smallAudio.type = "button";
         smallAudio.className = "small-audio";
         smallAudio.textContent = "🔊";
-        smallAudio.addEventListener("click", () => speak(item.audioText));
+        smallAudio.setAttribute("aria-label", "播放英文");
+        smallAudio.addEventListener("click", () => speak(playableText));
         top.appendChild(smallAudio);
       }
     }
