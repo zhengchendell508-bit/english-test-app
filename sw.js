@@ -1,4 +1,4 @@
-const CACHE = "english-test-firebase-migration-v2";
+const CACHE = "english-test-children-cloud-v4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const ASSETS = [
   "./admin.html",
   "./style.css",
   "./account.js",
+  "./device-mode.js",
   "./data.js",
   "./student.js",
   "./admin.js"

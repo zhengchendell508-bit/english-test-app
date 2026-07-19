@@ -327,3 +327,11 @@ pre{overflow:auto;background:#f4f6f9;padding:14px;border-radius:12px}
 @media(max-width:900px){
   .cloud-sync-status{order:-1}
 }
+
+
+/* 设备分工：iPhone / iPad / Android 只用于孩子测试 */
+.mobile-computer-note{display:none;margin-top:14px;color:var(--muted);line-height:1.6}
+.student-only-device .desktop-management-only{display:none !important}
+.student-only-device .mobile-computer-note{display:block}
+.student-only-device .role-grid{grid-template-columns:minmax(0,560px);justify-content:center}
+.student-only-device .child-role{width:100%}

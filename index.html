@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#f6f8fc">
   <title>英语学习系统</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260719-children-cloud-1">
+  <script src="device-mode.js?v=20260719-children-cloud-1"></script>
 </head>
 <body class="entry-body">
   <main class="entry-shell">
@@ -18,7 +19,7 @@
     </header>
 
     <section class="role-grid">
-      <a class="role-card parent-role" href="parent.html">
+      <a id="parentRoleCard" class="role-card parent-role desktop-management-only" href="parent.html">
         <span class="role-icon">👨‍👩‍👧‍👦</span>
         <span>
           <strong>家长</strong>
@@ -38,6 +39,10 @@
     </section>
   </main>
   <script>
+    if (window.AppDeviceMode?.isStudentOnlyDevice) {
+      const subtitle = document.querySelector(".entry-title p");
+      if (subtitle) subtitle.textContent = "请选择孩子进入英语测试";
+    }
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
   </script>
 </body>

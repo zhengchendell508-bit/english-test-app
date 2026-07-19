@@ -4,7 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>家长中心</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260719-children-cloud-1">
+  <script src="device-mode.js?v=20260719-children-cloud-1"></script>
+  <script>
+    if (window.AppDeviceMode?.isStudentOnlyDevice) {
+      location.replace("children.html");
+    }
+  </script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
   <main class="simple-shell">
@@ -31,21 +39,28 @@
       </div>
     </section>
   </main>
-  <script src="account.js"></script>
+  <script src="account.js?v=20260719-children-cloud-1"></script>
   <script>
     const input = document.getElementById("childName");
     const msg = document.getElementById("parentMessage");
-    function submit(){
+    async function submit(){
+      const button = document.getElementById("createBtn");
+      button.disabled = true;
+      button.textContent = "正在同步…";
+      msg.classList.add("hidden");
       try{
-        const child = createChild(input.value);
+        const child = await createChild(input.value);
         setActiveChild(child);
         location.href = "student.html";
       }catch(e){
         msg.textContent = e.message;
         msg.classList.remove("hidden");
+      }finally{
+        button.disabled = false;
+        button.textContent = "创建孩子";
       }
     }
-    document.getElementById("createBtn").onclick = submit;
+    document.getElementById("createBtn").onclick = () => { submit(); };
     input.addEventListener("keydown", e => { if(e.key === "Enter") submit(); });
   </script>
 </body>
