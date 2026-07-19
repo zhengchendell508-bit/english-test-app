@@ -1,4 +1,4 @@
-const CACHE = "english-test-sentence-single-column-v5";
+const CACHE = "english-test-clean-v7";
 const ASSETS = [
   "./",
   "./index.html",

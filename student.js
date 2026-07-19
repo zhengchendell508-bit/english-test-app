@@ -307,7 +307,10 @@
     const end = Math.min(start + PAGE_SIZE, QUESTION_COUNT);
     const questions = $("questions");
     questions.innerHTML = "";
-    questions.classList.toggle("sentence-layout", currentSection === "sentences");
+    const isSentenceSection = currentSection === "sentences";
+    questions.classList.toggle("sentence-layout", isSentenceSection);
+    // 直接写入布局，避免 iPad/PWA 仍读取旧 CSS 缓存时继续显示两列。
+    questions.style.gridTemplateColumns = isSentenceSection ? "minmax(0, 1fr)" : "repeat(2, minmax(0, 1fr))";
 
     section.items.slice(start, end).forEach((item, localIndex) => {
       const questionIndex = start + localIndex;
@@ -332,6 +335,10 @@
     const card = document.createElement("article");
     card.className = "question-card";
     card.id = `question-${index + 1}`;
+    if (currentSection === "sentences") {
+      card.style.gridColumn = "1 / -1";
+      card.style.width = "100%";
+    }
 
     if (state[currentSection][index].trim()) card.classList.add("answered");
     if (index === currentQuestion) card.classList.add("current");

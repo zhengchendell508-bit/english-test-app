@@ -97,8 +97,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .long-progress{height:8px;background:#edf1f6;border-radius:999px;overflow:hidden}.long-progress b{display:block;height:100%;width:0;background:var(--blue)}
 .ipad-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;padding:0 22px 22px}
 .question-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.question-cards.sentence-layout{grid-template-columns:1fr}
-.question-cards.sentence-layout .question-card{width:100%}
+.question-cards.sentence-layout{grid-template-columns:minmax(0,1fr)!important}
+.question-cards.sentence-layout .question-card{width:100%;grid-column:1/-1!important}
 .question-cards.sentence-layout textarea.english-answer{min-height:92px}
 .question-card{border:1px solid var(--line);border-radius:15px;padding:14px;background:#fff;transition:.15s}
 .question-card.answered{border-color:#9ad9b6;background:#f7fcf9}
