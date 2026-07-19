@@ -524,6 +524,128 @@
     renderTimer();
   }
 
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function reportSectionHtml(sectionName) {
+    const section = sections[sectionName];
+    const answers = state[sectionName];
+    const rows = section.items.map((item, index) => {
+      const studentAnswer = String(answers[index] || "").trim();
+      const correctAnswer = String(item.answer || "").trim();
+      const isCorrect = Boolean(studentAnswer) &&
+        normalizeAnswer(studentAnswer) === normalizeAnswer(correctAnswer);
+      const status = !studentAnswer ? "未作答" : (isCorrect ? "正确" : "需要检查");
+      const prompt = item.mode === "audio"
+        ? `听音：${item.audioText || item.answer || ""}`
+        : (item.prompt || "");
+
+      return `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${escapeHtml(prompt)}</td>
+          <td>${escapeHtml(studentAnswer || "（未作答）")}</td>
+          <td>${escapeHtml(correctAnswer)}</td>
+          <td class="${isCorrect ? "ok" : "check"}">${status}</td>
+        </tr>`;
+    }).join("");
+
+    return `
+      <section>
+        <h2>${escapeHtml(section.label)}（30题）</h2>
+        <table>
+          <thead>
+            <tr><th>题号</th><th>题目提示</th><th>孩子答案</th><th>标准答案</th><th>结果</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </section>`;
+  }
+
+  function buildReportHtml() {
+    saveNow();
+    persistTimer();
+
+    const keys = getStorageKeys(currentLessonId);
+    const submitted = readJson(keys.submitted, {});
+    const generatedAt = Date.now();
+    const startTimeText = timerState?.sessionStartedAt
+      ? formatDateTime(timerState.sessionStartedAt)
+      : "--";
+    const elapsedText = formatClock(currentElapsed());
+    const summaryRows = SECTION_ORDER.map(sectionName => {
+      const info = submitted[sectionName];
+      const answered = completedCount(sectionName);
+      return `
+        <tr>
+          <td>${escapeHtml(SECTION_LABELS[sectionName])}</td>
+          <td>${answered} / ${QUESTION_COUNT}</td>
+          <td>${info ? `${info.correct} / ${QUESTION_COUNT}` : "尚未提交"}</td>
+          <td>${info ? escapeHtml(formatDateTime(info.submittedAt)) : "--"}</td>
+        </tr>`;
+    }).join("");
+
+    return `<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(activeChild.name)}-${escapeHtml(lesson.title || `Lesson ${currentLessonId}`)}-英语测试检查报告</title>
+<style>
+  *{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;margin:0;color:#172033;background:#fff}
+  .report{max-width:1100px;margin:auto;padding:28px}.toolbar{display:flex;justify-content:flex-end;margin-bottom:16px}.toolbar button{border:1px solid #2868e8;background:#2868e8;color:#fff;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer}
+  h1{font-size:26px;margin:0 0 8px}.meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 20px;margin:18px 0 24px;padding:16px;border:1px solid #dfe5ee;border-radius:12px;background:#f7f9fc}.meta div{line-height:1.6}
+  h2{font-size:20px;margin:30px 0 10px}table{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:22px}th,td{border:1px solid #cfd7e3;padding:8px;vertical-align:top;text-align:left;word-break:break-word}th{background:#eef4ff}th:nth-child(1),td:nth-child(1){width:7%;text-align:center}th:nth-child(2),td:nth-child(2){width:25%}th:nth-child(3),td:nth-child(3){width:28%}th:nth-child(4),td:nth-child(4){width:28%}th:nth-child(5),td:nth-child(5){width:12%;text-align:center}.ok{color:#168044;font-weight:700}.check{color:#b45309;font-weight:700}
+  .note{margin-top:24px;padding:14px;border-left:4px solid #2868e8;background:#f5f8ff;line-height:1.7}
+  @media print{.toolbar{display:none}.report{max-width:none;padding:0}section{break-before:page}section:first-of-type{break-before:auto}table{font-size:11px}h2{margin-top:12px}}
+</style>
+</head>
+<body>
+<div class="report">
+  <div class="toolbar"><button onclick="window.print()">打印 / 另存为 PDF</button></div>
+  <h1>英语测试检查报告</h1>
+  <div class="meta">
+    <div><strong>孩子：</strong>${escapeHtml(activeChild.name)}</div>
+    <div><strong>Lesson：</strong>${escapeHtml(lesson.title || `Lesson ${currentLessonId}`)}</div>
+    <div><strong>本次开始时间：</strong>${escapeHtml(startTimeText)}</div>
+    <div><strong>累计用时：</strong>${escapeHtml(elapsedText)}</div>
+    <div><strong>文件生成时间：</strong>${escapeHtml(formatDateTime(generatedAt))}</div>
+    <div><strong>说明：</strong>可直接打开本文件，然后点击“打印 / 另存为 PDF”。</div>
+  </div>
+  <h2>提交概况</h2>
+  <table>
+    <thead><tr><th>部分</th><th>已填写</th><th>系统判定正确</th><th>提交时间</th></tr></thead>
+    <tbody>${summaryRows}</tbody>
+  </table>
+  ${SECTION_ORDER.map(reportSectionHtml).join("")}
+  <div class="note"><strong>给 ChatGPT 的检查提示：</strong>请逐题检查“孩子答案”与“标准答案”，重点说明拼写、语法、标点、大小写和表达是否自然，并按单词、短语、句子分别汇总错误。</div>
+</div>
+</body>
+</html>`;
+  }
+
+  function downloadCheckReport() {
+    const html = buildReportHtml();
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const safeChild = String(activeChild.name || "孩子").replace(/[\\/:*?"<>|]+/g, "-");
+    const safeLesson = String(lesson.title || `Lesson-${currentLessonId}`).replace(/[\\/:*?"<>|]+/g, "-");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    link.href = url;
+    link.download = `${safeChild}_${safeLesson}_英语测试检查报告_${stamp}.html`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   function speak(text) {
     if (!text.trim()) {
       alert("这道题目前没有英文内容");
@@ -576,6 +698,7 @@
 
     $("submitTopBtn").addEventListener("click", submitSection);
     $("submitBottomBtn").addEventListener("click", submitSection);
+    $("downloadReportBtn").addEventListener("click", downloadCheckReport);
 
     $("jumpBtn").addEventListener("click", () => {
       $("jumpDialog").showModal();
