@@ -307,6 +307,7 @@
     const end = Math.min(start + PAGE_SIZE, QUESTION_COUNT);
     const questions = $("questions");
     questions.innerHTML = "";
+    questions.classList.toggle("sentence-layout", currentSection === "sentences");
 
     section.items.slice(start, end).forEach((item, localIndex) => {
       const questionIndex = start + localIndex;

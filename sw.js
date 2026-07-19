@@ -1,4 +1,4 @@
-const CACHE = "english-test-children-cloud-v4";
+const CACHE = "english-test-sentence-single-column-v5";
 const ASSETS = [
   "./",
   "./index.html",
