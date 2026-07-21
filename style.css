@@ -106,7 +106,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .question-top{display:flex;align-items:center;gap:10px;min-height:31px;margin-bottom:9px}.question-top strong{font-size:17px}
 .chinese-prompt{font-size:15px;font-weight:650;flex:1}
 .audio-btn,.small-audio{border:0;background:#eef4ff;color:var(--blue);border-radius:9px;padding:7px 10px;cursor:pointer}.small-audio{padding:6px 8px}
-.english-answer{width:100%;min-height:44px;border:1px solid #cbd4e1;border-radius:10px;padding:10px 12px;background:#fff;font-size:16px;resize:vertical}
+.english-answer{width:100%;min-height:44px;border:1px solid #cbd4e1;border-radius:10px;padding:10px 12px;background:#fff;font-size:19px;resize:vertical}
 textarea.english-answer{min-height:66px}
 .page-controls{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-top:14px}.page-controls span{text-align:center;font-weight:700;color:var(--muted)}
 .bottom-submit{margin-top:14px;border:1px solid #bfe7ce;background:#f4fcf7;border-radius:15px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:16px}
