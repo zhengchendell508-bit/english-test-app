@@ -1,17 +1,22 @@
-const CACHE = "english-test-full-lesson-submit-v15";
+const CACHE = "english-test-cloud-pdf-v17";
 const ASSETS = [
   "./",
   "./index.html",
   "./parent.html",
   "./children.html",
+  "./submissions.html",
   "./student.html",
   "./admin.html",
   "./style.css",
   "./account.js",
   "./device-mode.js",
   "./data.js",
+  "./report.js",
+  "./submission-store.js",
   "./student.js",
-  "./admin.js"
+  "./admin.js",
+  "./vendor/html2canvas.min.js",
+  "./vendor/jspdf.umd.min.js"
 ];
 
 self.addEventListener("install", event => {
