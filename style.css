@@ -347,22 +347,32 @@ pre{overflow:auto;background:#f4f6f9;padding:14px;border-radius:12px}
 .student-only-device .role-grid{grid-template-columns:minmax(0,560px);justify-content:center}
 .student-only-device .child-role{width:100%}
 
-/* 2026-07-20：所有测试题中文默认隐藏，仅按住提示按钮时显示 */
+/* 2026-07-20：所有测试题中文默认隐藏，仅按住提示按钮时显示。
+   中文采用顶部悬浮提示，避免被按住按钮的手指遮挡。 */
 .chinese-prompt.hint-hidden{
   display:none;
 }
 .chinese-prompt.hint-visible{
   display:block;
-  flex:1 1 100%;
+  position:fixed;
+  z-index:260;
+  top:132px;
+  left:50%;
+  width:min(720px,calc(100vw - 36px));
+  transform:translateX(-50%);
   min-width:0;
-  padding:7px 10px;
-  border-radius:9px;
+  padding:14px 18px;
+  border:1px solid #e7bf59;
+  border-radius:13px;
   background:#fff8df;
   color:#76530f;
-  font-size:15px;
-  font-weight:700;
-  line-height:1.45;
+  box-shadow:0 12px 34px rgba(70,53,15,.22);
+  font-size:18px;
+  font-weight:750;
+  line-height:1.55;
+  text-align:center;
   word-break:break-word;
+  pointer-events:none;
 }
 .hint-hold-btn{
   flex:0 0 auto;
@@ -382,4 +392,15 @@ pre{overflow:auto;background:#f4f6f9;padding:14px;border-radius:12px}
 .hint-hold-btn.is-holding{
   background:#ffe8a8;
   border-color:#d9aa38;
+}
+
+/* 顶部考试栏在不同屏幕高度下，悬浮中文始终显示在考试栏下方。 */
+@media(max-width:1180px){
+  .chinese-prompt.hint-visible{top:188px}
+}
+@media(max-width:900px){
+  .chinese-prompt.hint-visible{top:202px}
+}
+@media(max-width:650px){
+  .chinese-prompt.hint-visible{top:188px;font-size:16px;padding:12px 14px}
 }

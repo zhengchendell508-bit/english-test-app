@@ -1,4 +1,4 @@
-const CACHE = "english-test-hold-hint-v10";
+const CACHE = "english-test-hint-position-v11";
 const ASSETS = [
   "./",
   "./index.html",
