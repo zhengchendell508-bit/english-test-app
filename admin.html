@@ -3,97 +3,163 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>英语题库管理后台</title>
-  <link rel="stylesheet" href="admin.css">
+  <title>家长题库管理</title>
+  <link rel="stylesheet" href="style.css?v=20260719-landscape-report-v9">
+  <script src="device-mode.js?v=20260719-landscape-report-v9"></script>
+  <script>
+    if (window.AppDeviceMode?.isStudentOnlyDevice) {
+      location.replace("children.html");
+    }
+  </script>
 </head>
-<body>
-  <div class="admin-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">E</div>
-        <div><strong>英语题库后台</strong><small>管理员专用</small></div>
+<body class="admin-body">
+  <header class="admin-topbar">
+    <a href="parent.html" class="back-btn" aria-label="返回">‹</a>
+    <div class="admin-title">
+      <h1>题库管理</h1>
+      <p>上传 TXT 或 JS，自动分类并按每类 30 题生成 Lesson</p>
+    </div>
+
+    <div class="admin-top-actions">
+      <span id="cloudSyncStatus" class="cloud-sync-status">正在连接云端…</span>
+      <label class="upload-btn">
+        上传 TXT / JS
+        <input id="questionFile" type="file"
+          accept=".txt,.js,text/plain,text/javascript,application/javascript" hidden>
+      </label>
+      <button id="saveBankBtn" class="primary-btn">保存题库</button>
+    </div>
+  </header>
+
+  <main class="admin-shell">
+    <aside class="lesson-sidebar panel">
+      <div class="sidebar-heading">
+        <h2>课程目录</h2>
+        <span id="lessonCount">0 Lessons</span>
       </div>
-
-      <button id="importBtn" class="import-btn">＋ 上传 TXT 文件</button>
-      <input id="txtInput" type="file" accept=".txt,text/plain" hidden>
-
-      <div class="side-title">课程目录</div>
-      <nav id="lessonList" class="lesson-list"></nav>
-      <button id="newLessonBtn" class="side-action">＋ 新建课程</button>
-
-      <div class="side-title side-title-bottom">其他</div>
-      <button class="side-link active-muted">最近导入</button>
-      <button class="side-link">未分类</button>
-      <button class="side-link">回收站</button>
-
-      <a class="student-link" href="index.html">打开孩子答题页面 ↗</a>
+      <div id="lessonList" class="lesson-list"></div>
     </aside>
 
-    <main class="workspace">
-      <header class="workspace-head">
-        <button id="menuBtn" class="menu-btn" aria-label="打开目录">☰</button>
+    <section class="admin-workspace">
+      <section class="panel import-status-panel">
+        <div class="import-status-heading">
+          <div>
+            <h2>自动生成状态</h2>
+            <p>新资料会接在现有资料后面，并自动跳过相同英文题目。</p>
+          </div>
+          <button id="openPasteBtn" class="ghost-btn">粘贴 TXT 内容</button>
+        </div>
+        <div class="global-counts">
+          <span>单词总数 <strong id="totalWords">0</strong></span>
+          <span>短语总数 <strong id="totalPhrases">0</strong></span>
+          <span>句子总数 <strong id="totalSentences">0</strong></span>
+          <span>Lesson 数量 <strong id="totalLessons">0</strong></span>
+        </div>
+      </section>
+
+      <div class="panel lesson-summary">
         <div>
-          <div class="eyebrow">题库管理 / <span id="breadcrumbLesson">Lesson 1</span></div>
-          <h1 id="lessonTitle">Lesson 1 <small style="font-size:14px;color:#18794e">中文补全版 V2</small></h1>
-          <p>英文和中文并排显示，像 Word 文档一样按章节查看、查找和修改。</p>
+          <label for="lessonTitleInput">当前课程</label>
+          <input id="lessonTitleInput" class="lesson-title-input" value="Lesson 1">
         </div>
-        <div class="head-actions">
-          <button id="fillChineseBtn" class="btn secondary accent">自动补中文</button>
-          <button id="exportBtn" class="btn secondary">导出 TXT</button>
-          <button id="saveBtn" class="btn primary">保存修改</button>
+
+        <div class="summary-counts">
+          <span class="summary-word">单词 <strong id="wordsCount">0 / 30</strong></span>
+          <span class="summary-phrase">短语 <strong id="phrasesCount">0 / 30</strong></span>
+          <span class="summary-sentence">句子 <strong id="sentencesCount">0 / 30</strong></span>
         </div>
-      </header>
-
-      <section style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;padding:14px 16px;border:2px solid #8fd5b2;background:#f2fbf6;border-radius:14px;flex-wrap:wrap">
-        <div><strong style="display:block;font-size:17px;color:#18794e">中文自动补全</strong><span style="color:#667789;font-size:13px">点击右侧按钮，为当前题库中尚未填写中文的内容自动补上中文。</span></div>
-        <button id="fillChineseBtnBanner" class="btn primary" type="button">一键自动补中文</button>
-      </section>
-
-      <section class="search-row">
-        <div class="search-box">⌕<input id="searchInput" placeholder="搜索英文、题号或分类……"></div>
-        <select id="filterSelect" aria-label="筛选分类">
-          <option value="all">全部分类</option>
-          <option value="words">只看单词</option>
-          <option value="phrases">只看短语</option>
-          <option value="sentences">只看句子</option>
-        </select>
-      </section>
-
-      <section class="summary-cards">
-        <button class="summary active" data-jump="words"><span>单词</span><strong id="wordCount">0</strong><small>点击跳转</small></button>
-        <button class="summary" data-jump="phrases"><span>短语</span><strong id="phraseCount">0</strong><small>点击跳转</small></button>
-        <button class="summary" data-jump="sentences"><span>句子</span><strong id="sentenceCount">0</strong><small>点击跳转</small></button>
-        <div class="summary total"><span>总题数</span><strong id="totalCount">0</strong><small id="saveState">本机演示数据</small></div>
-      </section>
-
-      <section id="documentArea" class="document-area"></section>
-    </main>
-  </div>
-
-  <dialog id="importDialog">
-    <form method="dialog" class="dialog-card">
-      <div class="dialog-head">
-        <div><h2>TXT 导入预览</h2><p>系统已经按词数自动分类，确认后才会放入题库。</p></div>
-        <button value="cancel" class="icon-btn">×</button>
       </div>
-      <div class="import-meta">
-        <label>导入到
-          <select id="importLesson"></select>
-        </label>
-        <span id="importStats"></span>
-      </div>
-      <div class="preview-column-head"><span>序号</span><span>分类</span><span>英文</span><span>中文</span></div>
-      <div id="importPreview" class="import-preview"></div>
+
+      <section class="panel import-panel">
+        <div>
+          <h2>支持的上传格式</h2>
+          <p>TXT：每行“英文 | 中文”；JS：支持 CHINESE_TRANSLATIONS 对照表格式。</p>
+        </div>
+        <div class="import-actions">
+          <button id="autoChineseBtn" class="ghost-btn">检查缺少中文</button>
+          <details class="more-actions">
+            <summary>更多操作</summary>
+            <div class="more-actions-menu">
+              <button id="clearAllBtn" class="quiet-danger-btn">清空全部题库</button>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <nav class="admin-tabs" aria-label="题库分类">
+        <button class="admin-tab active" data-type="words">单词 <span id="wordsTabCount">0</span></button>
+        <button class="admin-tab" data-type="phrases">短语 <span id="phrasesTabCount">0</span></button>
+        <button class="admin-tab" data-type="sentences">句子 <span id="sentencesTabCount">0</span></button>
+      </nav>
+
+      <section class="panel table-panel">
+        <div class="table-toolbar">
+          <div>
+            <h2 id="tableTitle">单词（30题）</h2>
+            <p id="tableHint">孩子看到中文，并输入英文；也可以将题目设为听音题。</p>
+          </div>
+          <button id="clearSectionBtn" class="danger-outline">清空本部分</button>
+        </div>
+
+        <div class="batch-mode-toolbar" aria-label="批量设置出题方式">
+          <label class="select-all-label">
+            <input id="selectAllRows" type="checkbox">
+            <span>全选本页</span>
+          </label>
+          <button id="selectAllBtn" type="button" class="ghost-btn compact-btn">全选</button>
+          <button id="clearSelectionBtn" type="button" class="ghost-btn compact-btn">取消全选</button>
+          <span id="selectedRowsCount" class="selected-count">已选择 0 题</span>
+          <div class="batch-mode-actions">
+            <button id="batchChineseBtn" type="button" class="ghost-btn">所选设为显示中文</button>
+            <button id="batchAudioBtn" type="button" class="ghost-btn">所选设为播放声音</button>
+          </div>
+        </div>
+
+        <div class="bank-table-wrap">
+          <table class="bank-table">
+            <thead>
+              <tr>
+                <th class="select-col"><span class="sr-only">选择</span></th>
+                <th class="number-col">编号</th>
+                <th>中文提示</th>
+                <th>英文答案</th>
+                <th class="mode-col">出题方式</th>
+                <th class="audio-col">播放</th>
+              </tr>
+            </thead>
+            <tbody id="bankRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="pasteDialog" class="admin-dialog">
+    <form method="dialog">
+      <h2>粘贴 TXT 题目</h2>
+      <p>每行一题。示例：<b>apple | 苹果</b></p>
+      <textarea id="pasteText" rows="12"
+        placeholder="apple | 苹果&#10;good morning | 早上好&#10;How are you today? | 你今天怎么样？"></textarea>
       <div class="dialog-actions">
-        <button value="cancel" class="btn secondary">取消</button>
-        <button id="confirmImportBtn" type="button" class="btn primary">确认导入</button>
+        <button value="cancel" class="ghost-btn">取消</button>
+        <button id="importTextBtn" type="button" class="primary-btn">自动分类并生成 Lesson</button>
       </div>
     </form>
   </dialog>
 
-  <div id="toast" class="toast"></div>
-  <script src="data.js"></script>
-  <script src="translations.js"></script>
-  <script src="admin.js"></script>
+  <dialog id="messageDialog" class="admin-dialog">
+    <form method="dialog">
+      <h2 id="messageTitle">提示</h2>
+      <div id="messageBody" class="message-body"></div>
+      <div class="dialog-actions">
+        <button value="close" class="primary-btn">知道了</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="data.js?v=20260719-landscape-report-v9"></script>
+  <script src="admin.js?v=20260719-landscape-report-v9"></script>
 </body>
 </html>
