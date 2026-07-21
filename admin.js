@@ -1,617 +1,106 @@
-(async () => {
-  const STORAGE_KEY = "englishLessonBankV2";
-  const TYPES = {
-    words: {label:"单词", hint:"孩子看到中文，并输入英文；也可以将题目设为听音题。"},
-    phrases: {label:"短语", hint:"孩子看到中文短语，并输入对应英文。"},
-    sentences: {label:"句子", hint:"孩子看到中文句子，并输入完整英文句子。"}
-  };
-
-  const el = id => document.getElementById(id);
-
-  function setCloudStatus(text, state = "") {
-    const status = el("cloudSyncStatus");
-    if (!status) return;
-    status.textContent = text;
-    status.dataset.state = state;
+const DEFAULT_LESSONS = {
+  "Lesson 1": {
+    words: QUESTION_BANK.words.slice(0, 28),
+    phrases: QUESTION_BANK.phrases.slice(0, 32),
+    sentences: QUESTION_BANK.sentences.slice(0, 30)
+  },
+  "Lesson 2": {
+    words: QUESTION_BANK.words.slice(28, 58),
+    phrases: QUESTION_BANK.phrases.slice(32, 68),
+    sentences: QUESTION_BANK.sentences.slice(30, 60)
+  },
+  "Lesson 3": {
+    words: QUESTION_BANK.words.slice(58, 88),
+    phrases: QUESTION_BANK.phrases.slice(68, 104),
+    sentences: QUESTION_BANK.sentences.slice(60, 90)
   }
-
-  setCloudStatus("正在连接云端…", "loading");
-  const loadedBank = await window.LessonDataService.loadBank();
-  let bank = cloneBank(loadedBank);
-  let currentLessonId = Number(Object.keys(bank)[0] || 1);
-  let currentType = "words";
-
-  const initialStatus = window.LessonDataService.getStatus();
-  if (initialStatus.source === "local-migration") {
-    setCloudStatus("✓ 已把电脑原题库首次同步到云端", "cloud");
-  } else {
-    setCloudStatus(
-      initialStatus.source === "cloud" ? "✓ 云端题库已连接" : "当前使用本地缓存",
-      initialStatus.source
-    );
-  }
-
-  function cloneBank(value){
-    return JSON.parse(JSON.stringify(value || {}));
-  }
-
-  function blankItem(){
-    return {prompt:"", answer:"", audioText:"", mode:"chinese"};
-  }
-
-  function cleanItem(item){
-    return {
-      prompt:String(item?.prompt || "").trim(),
-      answer:String(item?.answer || "").trim(),
-      audioText:String(item?.audioText || item?.answer || "").trim(),
-      mode:item?.mode === "audio" ? "audio" : "chinese"
-    };
-  }
-
-  function normalizeLesson(lessonId){
-    if(!bank[lessonId]){
-      bank[lessonId] = {
-        title:`Lesson ${lessonId}`,
-        words:[],
-        phrases:[],
-        sentences:[]
-      };
-    }
-
-    bank[lessonId].title = String(bank[lessonId].title || `Lesson ${lessonId}`);
-
-    for(const type of Object.keys(TYPES)){
-      const original = Array.isArray(bank[lessonId][type]) ? bank[lessonId][type] : [];
-      bank[lessonId][type] = original.slice(0,30).map(cleanItem);
-      while(bank[lessonId][type].length < 30){
-        bank[lessonId][type].push(blankItem());
-      }
-    }
-  }
-
-  function normalizeAll(){
-    const ids = Object.keys(bank).map(Number).filter(Number.isFinite).sort((a,b)=>a-b);
-    if(!ids.length){
-      bank = {};
-      normalizeLesson(1);
-      currentLessonId = 1;
-      return;
-    }
-    ids.forEach(normalizeLesson);
-  }
-
-  function flattenBank(){
-    normalizeAll();
-    const pools = {words:[], phrases:[], sentences:[]};
-
-    for(const id of Object.keys(bank).map(Number).sort((a,b)=>a-b)){
-      for(const type of Object.keys(TYPES)){
-        for(const raw of bank[id][type]){
-          const item = cleanItem(raw);
-          if(item.answer) pools[type].push(item);
-        }
-      }
-    }
-    return pools;
-  }
-
-  function uniqueByEnglish(items){
-    const seen = new Set();
-    const output = [];
-    for(const raw of items){
-      const item = cleanItem(raw);
-      const key = item.answer.toLocaleLowerCase().replace(/\s+/g," ").trim();
-      if(!key || seen.has(key)) continue;
-      seen.add(key);
-      output.push(item);
-    }
-    return output;
-  }
-
-  function rebuildLessons(pools){
-    const cleaned = {
-      words: uniqueByEnglish(pools.words || []),
-      phrases: uniqueByEnglish(pools.phrases || []),
-      sentences: uniqueByEnglish(pools.sentences || [])
-    };
-
-    // 分课规则：
-    // 单词、短语、句子三类中，只要任何一类进入下一个 30 条区间，
-    // 就生成对应的新 Lesson。其他不足的类别保持空白。
-    const wordLessons = Math.ceil(cleaned.words.length / 30);
-    const phraseLessons = Math.ceil(cleaned.phrases.length / 30);
-    const sentenceLessons = Math.ceil(cleaned.sentences.length / 30);
-    const lessonTotal = Math.max(1, wordLessons, phraseLessons, sentenceLessons);
-
-    const newBank = {};
-    for(let lessonId=1; lessonId<=lessonTotal; lessonId++){
-      newBank[lessonId] = {title:`Lesson ${lessonId}`};
-      for(const type of Object.keys(TYPES)){
-        const start = (lessonId - 1) * 30;
-        const items = cleaned[type].slice(start, start + 30).map(cleanItem);
-        while(items.length < 30) items.push(blankItem());
-        newBank[lessonId][type] = items;
-      }
-    }
-
-    bank = newBank;
-    currentLessonId = Math.min(currentLessonId, lessonTotal);
-    if(!bank[currentLessonId]) currentLessonId = 1;
-    return cleaned;
-  }
-
-  function filledCount(type, lessonId=currentLessonId){
-    normalizeLesson(lessonId);
-    return bank[lessonId][type].filter(item => item.answer.trim()).length;
-  }
-
-  function countAll(){
-    const pools = flattenBank();
-    return {
-      words: uniqueByEnglish(pools.words).length,
-      phrases: uniqueByEnglish(pools.phrases).length,
-      sentences: uniqueByEnglish(pools.sentences).length,
-      lessons: Object.keys(bank).length
-    };
-  }
-
-  async function saveLocal(showMessage = true) {
-    normalizeAll();
-    setCloudStatus("正在同步到云端…", "loading");
-
-    const result = await window.LessonDataService.saveBank(bank);
-    window.LESSON_BANK = cloneBank(bank);
-
-    if (result.ok) {
-      setCloudStatus("✓ 已同步到云端", "cloud");
-      if (showMessage) {
-        showDialog(
-          "保存成功",
-          "题库已经同步到云端。电脑和 iPad 重新打开测试页面后，会读取同一份 Lesson、中文提示和声音模式。"
-        );
-      }
-    } else {
-      setCloudStatus("云端失败，已保存本机", "local");
-      if (showMessage) {
-        showDialog(
-          "云端保存失败",
-          "题库已经保存在当前设备，但暂时没有写入 Firestore。请检查网络和 Firestore 测试规则后再点一次“保存题库”。"
-        );
-      }
-    }
-
-    return result;
-  }
-
-  function showDialog(title, html){
-    el("messageTitle").textContent = title;
-    el("messageBody").innerHTML = html;
-    el("messageDialog").showModal();
-  }
-
-  function escapeHtml(value){
-    return String(value).replace(/[&<>"']/g, ch => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-    })[ch]);
-  }
-
-  function renderLessons(){
-    normalizeAll();
-    const ids = Object.keys(bank).map(Number).sort((a,b)=>a-b);
-    el("lessonCount").textContent = `${ids.length} Lessons`;
-    const list = el("lessonList");
-    list.innerHTML = "";
-
-    ids.forEach(id => {
-      const button = document.createElement("button");
-      button.className = "lesson-item";
-      if(id === currentLessonId) button.classList.add("active");
-      button.innerHTML = `
-        <strong>${escapeHtml(bank[id].title || `Lesson ${id}`)}</strong>
-        <small>
-          单 ${filledCount("words",id)}/30 ·
-          短 ${filledCount("phrases",id)}/30 ·
-          句 ${filledCount("sentences",id)}/30
-        </small>
-      `;
-      button.onclick = () => {
-        currentLessonId = id;
-        renderAll();
-      };
-      list.appendChild(button);
-    });
-  }
-
-  function renderGlobalCounts(){
-    const totals = countAll();
-    el("totalWords").textContent = totals.words;
-    el("totalPhrases").textContent = totals.phrases;
-    el("totalSentences").textContent = totals.sentences;
-    el("totalLessons").textContent = totals.lessons;
-  }
-
-  function renderSummary(){
-    normalizeLesson(currentLessonId);
-    el("lessonTitleInput").value = bank[currentLessonId].title || `Lesson ${currentLessonId}`;
-    for(const type of Object.keys(TYPES)){
-      const count = filledCount(type);
-      el(`${type}Count`).textContent = `${count} / 30`;
-      el(`${type}TabCount`).textContent = count;
-    }
-  }
-
-  function renderTabs(){
-    document.querySelectorAll(".admin-tab").forEach(btn => {
-      btn.classList.toggle("active", btn.dataset.type === currentType);
-    });
-    el("tableTitle").textContent = `${TYPES[currentType].label}（30题）`;
-    el("tableHint").textContent = TYPES[currentType].hint;
-  }
-
-  function updateBatchSelectionState(){
-    const boxes = [...document.querySelectorAll(".row-select")];
-    const selected = boxes.filter(box => box.checked);
-    el("selectedRowsCount").textContent = `已选择 ${selected.length} 题`;
-
-    const selectAll = el("selectAllRows");
-    selectAll.checked = boxes.length > 0 && selected.length === boxes.length;
-    selectAll.indeterminate = selected.length > 0 && selected.length < boxes.length;
-  }
-
-  function selectedRowIndexes(){
-    return [...document.querySelectorAll(".row-select:checked")]
-      .map(box => Number(box.dataset.index))
-      .filter(Number.isInteger);
-  }
-
-  async function applyModeToSelected(mode){
-    const indexes = selectedRowIndexes();
-    if(!indexes.length){
-      showDialog("还没有选择题目", "请先勾选需要修改的题目，或者点击“全选本页”。");
-      return;
-    }
-
-    indexes.forEach(index => {
-      const item = bank[currentLessonId][currentType][index];
-      if(item) item.mode = mode;
-    });
-
-    document.querySelectorAll(".bank-table tbody tr").forEach((row,index) => {
-      if(indexes.includes(index)){
-        const select = row.querySelector(".mode-select");
-        if(select) select.value = mode;
-      }
-    });
-
-    await saveLocal(false);
-    showDialog(
-      "批量设置完成",
-      `已将 <b>${indexes.length}</b> 道题设置为“${mode === "audio" ? "播放声音" : "显示中文"}”。`
-    );
-  }
-
-  function renderRows(){
-    normalizeLesson(currentLessonId);
-    const body = el("bankRows");
-    body.innerHTML = "";
-    el("selectAllRows").checked = false;
-    el("selectAllRows").indeterminate = false;
-
-    bank[currentLessonId][currentType].forEach((item,index) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="select-cell"><input class="row-select" type="checkbox" data-index="${index}" aria-label="选择第 ${index+1} 题"></td>
-        <td class="number-cell">${index+1}</td>
-        <td><input class="table-input chinese-input" placeholder="输入中文提示"></td>
-        <td><input class="table-input english-input" placeholder="输入英文答案"></td>
-        <td>
-          <select class="mode-select">
-            <option value="chinese">看中文</option>
-            <option value="audio">听声音</option>
-          </select>
-        </td>
-        <td><button type="button" class="play-row-btn" title="播放英文">🔊</button></td>
-      `;
-
-      const rowSelect = tr.querySelector(".row-select");
-      const chinese = tr.querySelector(".chinese-input");
-      const english = tr.querySelector(".english-input");
-      const mode = tr.querySelector(".mode-select");
-      const play = tr.querySelector(".play-row-btn");
-
-      chinese.value = item.prompt;
-      english.value = item.answer;
-      mode.value = item.mode;
-
-      rowSelect.addEventListener("change", updateBatchSelectionState);
-
-      chinese.addEventListener("input", () => {
-        item.prompt = chinese.value;
-      });
-
-      english.addEventListener("input", () => {
-        item.answer = english.value;
-        item.audioText = english.value;
-        tr.classList.toggle("row-complete", Boolean(english.value.trim()));
-        renderSummary();
-        renderGlobalCounts();
-        renderLessons();
-      });
-
-      mode.addEventListener("change", () => {
-        item.mode = mode.value;
-      });
-
-      play.onclick = () => playEnglish(item.audioText || item.answer);
-      tr.classList.toggle("row-complete", Boolean(item.answer.trim()));
-      body.appendChild(tr);
-    });
-
-    updateBatchSelectionState();
-  }
-
-  function renderAll(){
-    renderLessons();
-    renderGlobalCounts();
-    renderSummary();
-    renderTabs();
-    renderRows();
-  }
-
-  function playEnglish(text){
-    const clean = String(text || "").trim();
-    if(!clean){
-      showDialog("没有英文内容", "请先填写这一题的英文答案。");
-      return;
-    }
-    if(!("speechSynthesis" in window)){
-      showDialog("无法播放", "当前浏览器不支持本机语音播放。");
-      return;
-    }
-    speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(clean);
-    utter.lang = "en-US";
-    utter.rate = 0.85;
-    speechSynthesis.speak(utter);
-  }
-
-  function classifyEnglish(english){
-    const text = String(english || "").trim();
-    const wordCount = text.split(/\s+/).filter(Boolean).length;
-    if(wordCount <= 1) return "words";
-    if(wordCount <= 5) return "phrases";
-    return "sentences";
-  }
-
-  function parseTxtLine(line){
-    const clean = String(line || "").trim();
-    if(!clean) return null;
-
-    let english = clean;
-    let chinese = "";
-    const separators = ["\t","|","｜","="];
-
-    for(const separator of separators){
-      if(clean.includes(separator)){
-        const parts = clean.split(separator);
-        english = parts.shift().trim();
-        chinese = parts.join(separator).trim();
-        break;
-      }
-    }
-
-    english = english.replace(/^\d+[\s.)、-]*/, "").trim();
-    if(!english) return null;
-
-    return {
-      type: classifyEnglish(english),
-      item: {prompt:chinese, answer:english, audioText:english, mode:"chinese"}
-    };
-  }
-
-  function parseTxt(text){
-    return String(text || "")
-      .split(/\r?\n/)
-      .map(parseTxtLine)
-      .filter(Boolean);
-  }
-
-  function parseJsTranslations(text){
-    const source = String(text || "").replace(/^\uFEFF/, "");
-    const assignmentMatch = source.match(
-      /(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*({[\s\S]*})\s*;?\s*$/
-    );
-
-    if(!assignmentMatch){
-      throw new Error("没有找到 JS 翻译对象。文件应类似：const CHINESE_TRANSLATIONS = { \"apple\": \"苹果\" };");
-    }
-
-    let objectText = assignmentMatch[1].trim();
-    objectText = objectText.replace(/,\s*}/g, "}");
-
-    let translations;
-    try{
-      translations = JSON.parse(objectText);
-    }catch{
-      throw new Error("JS 文件中的对象必须使用双引号，例如：\"apple\": \"苹果\"。");
-    }
-
-    if(!translations || Array.isArray(translations) || typeof translations !== "object"){
-      throw new Error("JS 文件中没有有效的英文—中文对照表。");
-    }
-
-    return Object.entries(translations)
-      .map(([english,chinese]) => ({
-        type: classifyEnglish(english),
-        item: {
-          prompt:String(chinese ?? "").trim(),
-          answer:String(english ?? "").trim(),
-          audioText:String(english ?? "").trim(),
-          mode:"chinese"
-        }
-      }))
-      .filter(row => row.item.answer);
-  }
-
-  async function mergeImportedRows(rows, sourceLabel){
-    if(!rows.length){
-      showDialog("没有找到题目", "文件中没有可以导入的英文题目。");
-      return;
-    }
-
-    const existing = flattenBank();
-    const before = {
-      words: uniqueByEnglish(existing.words).length,
-      phrases: uniqueByEnglish(existing.phrases).length,
-      sentences: uniqueByEnglish(existing.sentences).length
-    };
-
-    const imported = {words:[], phrases:[], sentences:[]};
-    rows.forEach(row => imported[row.type].push(cleanItem(row.item)));
-
-    const combined = {
-      words: [...existing.words, ...imported.words],
-      phrases: [...existing.phrases, ...imported.phrases],
-      sentences: [...existing.sentences, ...imported.sentences]
-    };
-
-    const cleaned = rebuildLessons(combined);
-    const added = {
-      words: cleaned.words.length - before.words,
-      phrases: cleaned.phrases.length - before.phrases,
-      sentences: cleaned.sentences.length - before.sentences
-    };
-
-    await saveLocal(false);
-    renderAll();
-
-    const duplicates = rows.length - added.words - added.phrases - added.sentences;
-    const latestId = Object.keys(bank).map(Number).sort((a,b)=>b-a)[0] || 1;
-    const latest = bank[latestId];
-
-    showDialog(
-      "导入并自动生成完成",
-      `<b>来源：</b>${escapeHtml(sourceLabel)}<br><br>` +
-      `新增单词：${added.words}<br>` +
-      `新增短语：${added.phrases}<br>` +
-      `新增句子：${added.sentences}<br>` +
-      `跳过重复：${Math.max(0,duplicates)}<br><br>` +
-      `现在共有 ${Object.keys(bank).length} 个 Lesson。<br>` +
-      `最后一课：单词 ${filledCount("words",latestId)}/30、` +
-      `短语 ${filledCount("phrases",latestId)}/30、` +
-      `句子 ${filledCount("sentences",latestId)}/30。`
-    );
-  }
-
-  async function importFile(file){
-    const text = await file.text();
-    const lowerName = file.name.toLowerCase();
-
-    try{
-      if(lowerName.endsWith(".js")){
-        await mergeImportedRows(parseJsTranslations(text), file.name);
-      }else if(lowerName.endsWith(".txt")){
-        await mergeImportedRows(parseTxt(text), file.name);
-      }else{
-        showDialog("不支持的文件", "请选择 .txt 或 .js 文件。");
-      }
-    }catch(error){
-      showDialog("导入失败", escapeHtml(error.message || "文件无法读取。"));
-    }
-  }
-
-  document.querySelectorAll(".admin-tab").forEach(btn => {
-    btn.onclick = () => {
-      currentType = btn.dataset.type;
-      renderTabs();
-      renderRows();
+};
+
+function toEntry(item){
+  if(typeof item === "string") return {english:item, chinese:CHINESE_TRANSLATIONS[item] || ""};
+  return {english:item.english || "", chinese:item.chinese || CHINESE_TRANSLATIONS[item.english] || ""};
+}
+function normalizeLessons(raw){
+  const result={};
+  Object.entries(raw).forEach(([lesson, groups])=>{
+    result[lesson]={
+      words:(groups.words||[]).map(toEntry),
+      phrases:(groups.phrases||[]).map(toEntry),
+      sentences:(groups.sentences||[]).map(toEntry)
     };
   });
+  return result;
+}
 
-  el("lessonTitleInput").addEventListener("input", () => {
-    bank[currentLessonId].title = el("lessonTitleInput").value;
-    renderLessons();
+const STORAGE_KEY = "englishAdminChineseDemoV1";
+let lessons = normalizeLessons(JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || structuredClone(DEFAULT_LESSONS));
+let currentLesson = Object.keys(lessons)[0];
+let importRows = [];
+const labels = { words: "单词", phrases: "短语", sentences: "句子" };
+const el = id => document.getElementById(id);
+
+function saveLocal(message="已保存到本机演示数据"){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(lessons));
+  el("saveState").textContent = "刚刚保存";
+  toast(message);
+}
+function toast(text){
+  const t=el("toast"); t.textContent=text; t.classList.add("show");
+  clearTimeout(window.__toastTimer); window.__toastTimer=setTimeout(()=>t.classList.remove("show"),1800);
+}
+function lessonTotal(name){ const l=lessons[name]; return l.words.length+l.phrases.length+l.sentences.length; }
+function renderLessons(){
+  const nav=el("lessonList"); nav.innerHTML="";
+  Object.keys(lessons).forEach(name=>{
+    const b=document.createElement("button");
+    b.className="lesson-item"+(name===currentLesson?" active":"");
+    b.innerHTML=`<span>${escapeHtml(name)}</span><span>${lessonTotal(name)}</span>`;
+    b.onclick=()=>{currentLesson=name; renderAll(); document.body.classList.remove("menu-open")}; nav.appendChild(b);
   });
-
-  el("saveBankBtn").onclick = async () => { await saveLocal(true); };
-
-  el("questionFile").addEventListener("change", async event => {
-    const file = event.target.files?.[0];
-    if(file) await importFile(file);
-    event.target.value = "";
+  el("importLesson").innerHTML=Object.keys(lessons).map(n=>`<option>${escapeHtml(n)}</option>`).join("");
+  el("importLesson").value=currentLesson;
+}
+function renderAll(){
+  renderLessons(); el("lessonTitle").textContent=currentLesson; el("breadcrumbLesson").textContent=currentLesson;
+  const l=lessons[currentLesson]; el("wordCount").textContent=l.words.length; el("phraseCount").textContent=l.phrases.length;
+  el("sentenceCount").textContent=l.sentences.length; el("totalCount").textContent=lessonTotal(currentLesson); renderDocument();
+}
+function renderDocument(){
+  const query=el("searchInput").value.trim().toLowerCase(), filter=el("filterSelect").value, area=el("documentArea"); area.innerHTML="";
+  ["words","phrases","sentences"].forEach(type=>{
+    if(filter!=="all"&&filter!==type) return;
+    const source=lessons[currentLesson][type];
+    const matches=source.map((entry,index)=>({entry,index})).filter(x=>!query||x.entry.english.toLowerCase().includes(query)||x.entry.chinese.includes(query)||String(x.index+1)===query||labels[type].includes(query));
+    const sec=document.createElement("section"); sec.className="doc-section"; sec.id=`section-${type}`;
+    sec.innerHTML=`<div class="doc-header"><h2>${labels[type]}</h2><span class="count">显示 ${matches.length} / ${source.length}</span><button class="collapse">⌃</button></div><div class="column-head"><span>题号</span><span>英文内容</span><span>中文意思</span><span>操作</span></div><div class="doc-body"></div>`;
+    const body=sec.querySelector(".doc-body"); if(!matches.length) body.innerHTML='<div class="empty">没有找到符合条件的内容</div>';
+    matches.forEach(({entry,index})=>body.appendChild(makeRow(type,index,entry)));
+    sec.querySelector(".doc-header").onclick=()=>{body.classList.toggle("collapsed");sec.querySelector(".column-head").classList.toggle("collapsed");sec.querySelector(".collapse").textContent=body.classList.contains("collapsed")?"⌄":"⌃"}; area.appendChild(sec);
   });
-
-  el("openPasteBtn").onclick = () => {
-    el("pasteText").value = "";
-    el("pasteDialog").showModal();
-  };
-
-  el("importTextBtn").onclick = async () => {
-    el("pasteDialog").close();
-    mergeImportedRows(parseTxt(el("pasteText").value), "粘贴的 TXT 内容");
-  };
-
-  el("selectAllRows").addEventListener("change", event => {
-    document.querySelectorAll(".row-select").forEach(box => {
-      box.checked = event.target.checked;
-    });
-    updateBatchSelectionState();
-  });
-
-  el("selectAllBtn").onclick = () => {
-    document.querySelectorAll(".row-select").forEach(box => {
-      box.checked = true;
-    });
-    updateBatchSelectionState();
-  };
-
-  el("clearSelectionBtn").onclick = () => {
-    document.querySelectorAll(".row-select").forEach(box => {
-      box.checked = false;
-    });
-    updateBatchSelectionState();
-  };
-
-  el("batchChineseBtn").onclick = async () => { await applyModeToSelected("chinese"); };
-  el("batchAudioBtn").onclick = async () => { await applyModeToSelected("audio"); };
-
-  el("clearSectionBtn").onclick = async () => {
-    if(!confirm(`确定清空当前 Lesson 的全部${TYPES[currentType].label}吗？`)) return;
-    bank[currentLessonId][currentType] = Array.from({length:30}, blankItem);
-    await saveLocal(false);
-    renderAll();
-  };
-
-  el("clearAllBtn").onclick = async () => {
-    const confirmed = confirm("确定清空全部 Lesson 和全部题目吗？此操作不能撤销。");
-    if(!confirmed) return;
-    bank = {};
-    normalizeLesson(1);
-    currentLessonId = 1;
-    await saveLocal(false);
-    renderAll();
-    showDialog("已经清空", "题库已经恢复为空白 Lesson 1，可以重新上传 TXT 或 JS 文件。");
-  };
-
-  el("autoChineseBtn").onclick = () => {
-    const pools = flattenBank();
-    let missing = 0;
-    for(const type of Object.keys(TYPES)){
-      missing += pools[type].filter(item => item.answer && !item.prompt).length;
-    }
-
-    if(!missing){
-      showDialog("中文资料完整", "所有已经填写英文的题目都带有中文提示。");
-      return;
-    }
-
-    showDialog(
-      "缺少中文提示",
-      `目前有 <b>${missing}</b> 道题缺少中文。<br><br>` +
-      "你可以上传包含“英文 | 中文”的 TXT，或者上传 CHINESE_TRANSLATIONS 格式的 JS 文件。"
-    );
-  };
-
-  normalizeAll();
-  renderAll();
-})(); 
+}
+function makeRow(type,index,entry){
+  const row=document.createElement("div"); row.className="item-row";
+  row.innerHTML=`<div class="item-number">${index+1}.</div><div class="item-text english"><input value="${escapeAttr(entry.english)}" aria-label="英文"></div><div class="item-text chinese"><input value="${escapeAttr(entry.chinese)}" placeholder="中文意思" aria-label="中文"></div><div class="item-actions"><button class="mini-btn" title="试听">🔊</button><button class="mini-btn" title="向上移动">↑</button><button class="mini-btn" title="向下移动">↓</button><button class="mini-btn delete" title="删除">删</button></div>`;
+  const inputs=row.querySelectorAll("input");
+  inputs[0].onchange=()=>{entry.english=inputs[0].value.trim(); if(!entry.chinese&&CHINESE_TRANSLATIONS[entry.english]){entry.chinese=CHINESE_TRANSLATIONS[entry.english];inputs[1].value=entry.chinese} saveLocal("英文内容已修改")};
+  inputs[1].onchange=()=>{entry.chinese=inputs[1].value.trim();saveLocal("中文意思已修改")};
+  const btns=row.querySelectorAll("button"); btns[0].onclick=()=>speak(entry.english); btns[1].onclick=()=>moveItem(type,index,-1); btns[2].onclick=()=>moveItem(type,index,1);
+  btns[3].onclick=()=>{if(confirm(`确定删除第 ${index+1} 条吗？`)){lessons[currentLesson][type].splice(index,1);saveLocal("已删除");renderAll()}}; return row;
+}
+function moveItem(type,index,delta){ const arr=lessons[currentLesson][type], next=index+delta; if(next<0||next>=arr.length)return; [arr[index],arr[next]]=[arr[next],arr[index]];saveLocal("顺序已调整");renderAll(); }
+function speak(text){ if(!("speechSynthesis" in window)){toast("此浏览器不支持本机试听");return} speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang="en-US";u.rate=.82;speechSynthesis.speak(u); }
+function classify(text){ const clean=text.trim(), count=clean.split(/\s+/).filter(Boolean).length; if(/[.!?]$/.test(clean))return "sentences";if(count<=1)return "words";if(count<=5)return "phrases";return "sentences"; }
+el("importBtn").onclick=()=>el("txtInput").click();
+el("txtInput").onchange=async e=>{const file=e.target.files[0];if(!file)return;const lines=(await file.text()).split(/\r?\n/).map(x=>x.trim()).filter(Boolean);importRows=lines.map((english,i)=>({english,chinese:CHINESE_TRANSLATIONS[english]||"",type:classify(english),i}));renderImportPreview();el("importDialog").showModal();e.target.value=""};
+function renderImportPreview(){
+  const counts={words:0,phrases:0,sentences:0};importRows.forEach(r=>counts[r.type]++);el("importStats").textContent=`共 ${importRows.length} 条：单词 ${counts.words} · 短语 ${counts.phrases} · 句子 ${counts.sentences}`;
+  const p=el("importPreview");p.innerHTML="";importRows.forEach((r,i)=>{const row=document.createElement("div");row.className="preview-row";row.innerHTML=`<strong>${i+1}</strong><select><option value="words">单词</option><option value="phrases">短语</option><option value="sentences">句子</option></select><input value="${escapeAttr(r.english)}" aria-label="英文"><input value="${escapeAttr(r.chinese)}" placeholder="自动补中文" aria-label="中文">`;const [s,en,zh]=row.querySelectorAll("select,input");s.value=r.type;s.onchange=()=>r.type=s.value;en.oninput=()=>{r.english=en.value;if(!zh.value&&CHINESE_TRANSLATIONS[r.english]){r.chinese=CHINESE_TRANSLATIONS[r.english];zh.value=r.chinese}};zh.oninput=()=>r.chinese=zh.value;p.appendChild(row)});
+}
+el("confirmImportBtn").onclick=()=>{const lesson=el("importLesson").value;importRows.forEach(r=>{if(r.english.trim())lessons[lesson][r.type].push({english:r.english.trim(),chinese:r.chinese.trim()})});currentLesson=lesson;saveLocal(`已导入 ${importRows.length} 条内容`);el("importDialog").close();renderAll()};
+const fillChineseNow=()=>{let filled=0;Object.values(lessons).forEach(groups=>Object.values(groups).forEach(items=>items.forEach(entry=>{if(!entry.chinese&&CHINESE_TRANSLATIONS[entry.english]){entry.chinese=CHINESE_TRANSLATIONS[entry.english];filled++}})));saveLocal(filled?`已自动补上 ${filled} 条中文`:'现有资料的中文已经全部补齐');renderAll()};
+el("fillChineseBtn").onclick=fillChineseNow;
+el("fillChineseBtnBanner").onclick=fillChineseNow;
+el("newLessonBtn").onclick=()=>{const name=prompt("请输入课程名称，例如 Lesson 11");if(!name||!name.trim())return;const n=name.trim();if(lessons[n]){toast("这个课程已经存在");return}lessons[n]={words:[],phrases:[],sentences:[]};currentLesson=n;saveLocal("新课程已建立");renderAll()};
+el("saveBtn").onclick=()=>saveLocal();el("searchInput").oninput=renderDocument;el("filterSelect").onchange=renderDocument;el("menuBtn").onclick=()=>document.body.classList.toggle("menu-open");document.querySelectorAll(".summary[data-jump]").forEach(b=>b.onclick=()=>document.getElementById(`section-${b.dataset.jump}`)?.scrollIntoView({behavior:"smooth"}));
+el("exportBtn").onclick=()=>{const l=lessons[currentLesson];const lines=[`# ${currentLesson}`,""];for(const type of ["words","phrases","sentences"]){lines.push(`[${labels[type]}]`);l[type].forEach((x,i)=>lines.push(`${i+1}. ${x.english}\t${x.chinese}`));lines.push("")}const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([lines.join("\n")],{type:"text/plain;charset=utf-8"}));a.download=`${currentLesson}-中英题库.txt`;a.click();URL.revokeObjectURL(a.href)};
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}function escapeAttr(s){return escapeHtml(s)}renderAll();

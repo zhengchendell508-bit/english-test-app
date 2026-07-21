@@ -2,135 +2,132 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#f6f8fc">
-  <title>新概念英语答案 App</title>
-  <link rel="stylesheet" href="style.css?v=20260719-landscape-report-v9">
-  <script src="device-mode.js?v=20260719-landscape-report-v9"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#24415f">
+  <title>新概念英语答题 App</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
 </head>
-<body class="student-body">
-  <header class="exam-header">
-    <div class="brand-block">
-      <span class="brand-logo">📖</span>
-      <strong>新概念英语答案 App</strong>
+<body class="student-locked">
+  <header class="topbar">
+    <div>
+      <h1>新概念英语答题 App</h1>
+      <p>孩子独立账号 · 答案实时自动保存</p>
     </div>
-
-    <div class="header-info child-info">
-      <span>👤 当前孩子</span>
-      <strong id="activeChildName">未选择</strong>
+    <div class="top-actions">
+      <a class="ghost-link" href="admin.html">管理后台</a>
+      <button id="settingsBtn" class="ghost-btn" disabled>设置</button>
     </div>
-
-    <div class="header-info timer-info">
-      <span>⏱️ 计时器</span>
-      <strong id="elapsedTime">00:00:00</strong>
-    </div>
-
-    <div class="header-info start-info">
-      <span>🕒 本次开始时间</span>
-      <strong id="startTime">--</strong>
-    </div>
-
-    <button class="progress-tab active" data-section="words">
-      <span>单词</span><strong id="wordsProgress">0 / 30</strong>
-      <i><b id="wordsBar"></b></i>
-    </button>
-    <button class="progress-tab" data-section="phrases">
-      <span>短语</span><strong id="phrasesProgress">0 / 30</strong>
-      <i><b id="phrasesBar"></b></i>
-    </button>
-    <button class="progress-tab" data-section="sentences">
-      <span>句子</span><strong id="sentencesProgress">0 / 30</strong>
-      <i><b id="sentencesBar"></b></i>
-    </button>
-
-    <div id="saveStatus" class="save-chip">✓ 已自动保存</div>
-    <a class="switch-child" href="children.html">切换孩子</a>
   </header>
 
-  <main class="exam-shell">
-    <section class="lesson-card">
-      <div class="lesson-toolbar">
-        <div class="lesson-heading-group">
-          <div>
-            <h1 id="sectionTitle">Lesson 1 - 单词</h1>
-            <p id="sectionSub">第 1 部分，共 3 部分（单词 30 题、短语 30 题、句子 30 题）</p>
-          </div>
-          <label class="student-lesson-picker">
-            <span>选择 Lesson</span>
-            <select id="lessonSelect" aria-label="选择要测试的 Lesson"></select>
-          </label>
-        </div>
-        <div class="toolbar-actions">
-          <button id="jumpBtn" class="ghost-btn">跳到题号</button>
-          <button id="submitTopBtn" class="primary-btn">提交本部分</button>
-        </div>
+  <main>
+    <section id="studentSessionCard" class="student-card hidden">
+      <div class="student-identity">
+        <span class="field-label">当前孩子</span>
+        <strong id="activeStudentName">—</strong>
       </div>
-
-      <div class="section-progress">
-        <span id="progressText">已完成 0 / 30 题</span>
-        <div class="long-progress"><b id="longProgressBar"></b></div>
-        <span id="progressPercent">0%</span>
+      <div class="student-identity">
+        <span class="field-label">本次进入时间（系统自动记录）</span>
+        <strong id="startTimeText">—</strong>
       </div>
-
-      <div class="ipad-layout">
-        <div class="question-area">
-          <div id="questions" class="question-cards"></div>
-
-          <div class="page-controls">
-            <button id="prevPageBtn" class="ghost-btn">上一页</button>
-            <span id="pageInfo">第 1 / 3 页</span>
-            <button id="nextPageBtn" class="primary-btn">下一页</button>
-          </div>
-
-          <div id="bottomSubmitArea" class="bottom-submit hidden">
-            <p>本部分 30 题已经到达最后一页，可以提交，也可以直接切换到短语或句子。</p>
-            <button id="submitBottomBtn" class="submit-large">提交本部分</button>
-          </div>
-        </div>
-
-        <aside class="question-nav">
-          <h2>题目导航</h2>
-          <div class="legend">
-            <span><i class="done-dot"></i>已填写</span>
-            <span><i class="current-dot"></i>当前题</span>
-            <span><i class="empty-dot"></i>未作答</span>
-          </div>
-          <div id="numberGrid" class="number-grid"></div>
-          <div class="audio-tip">
-            <strong>🔊 听音题</strong>
-            <p>点击喇叭听英文，然后输入英文答案。</p>
-          </div>
-        </aside>
+      <div class="student-identity timer-identity">
+        <span class="field-label">累计答题用时（自动保存）</span>
+        <strong id="elapsedTimeText" class="elapsed-time">00:00:00</strong>
+      </div>
+      <div class="student-session-actions">
+        <span class="save-status" id="saveStatus">已自动保存</span>
+        <button id="switchStudentBtn" class="ghost-btn" type="button">切换孩子</button>
       </div>
     </section>
+
+    <div id="examContent" class="hidden">
+      <nav class="tabs" aria-label="题目部分">
+        <button class="tab active" data-section="words">单词 <span>0</span></button>
+        <button class="tab" data-section="phrases">短语 <span>0</span></button>
+        <button class="tab" data-section="sentences">句子 <span>0</span></button>
+      </nav>
+
+      <section class="toolbar">
+        <div>
+          <strong id="sectionTitle">第一部分：单词</strong>
+          <span id="progressText">已填写 0 / 0</span>
+        </div>
+        <div class="toolbar-actions">
+          <button id="jumpBtn" class="ghost-btn" type="button">跳到题号</button>
+          <button id="gradeBtn" class="primary-btn" type="button">提交批改</button>
+        </div>
+      </section>
+
+      <section id="resultPanel" class="result-panel hidden"></section>
+      <section id="questions" class="questions words-grid"></section>
+    </div>
   </main>
+
+  <dialog id="studentLoginDialog" class="login-dialog">
+    <section class="account-card">
+      <div class="login-mark">E</div>
+      <h2>孩子账号</h2>
+      <p class="account-intro">使用已有账号登录，或者创建一个新的孩子账号。</p>
+
+      <div class="account-tabs" role="tablist" aria-label="账号操作">
+        <button id="loginAccountTab" class="account-tab active" type="button" role="tab">登录</button>
+        <button id="createAccountTab" class="account-tab" type="button" role="tab">创建账号</button>
+      </div>
+
+      <form id="loginStudentForm" class="account-panel account-form">
+        <label for="loginStudentName">用户名</label>
+        <input id="loginStudentName" type="text" maxlength="40" autocomplete="username" placeholder="请输入孩子用户名">
+        <label for="loginStudentPassword">密码</label>
+        <input id="loginStudentPassword" type="password" minlength="4" maxlength="30" autocomplete="current-password" placeholder="请输入密码">
+        <div id="loginStudentError" class="login-error" aria-live="polite"></div>
+        <button class="primary-btn login-confirm" type="submit">登录并进入测试</button>
+      </form>
+
+      <form id="createStudentForm" class="account-panel account-form hidden">
+        <label for="newStudentName">创建用户名</label>
+        <input id="newStudentName" type="text" maxlength="40" autocomplete="username" placeholder="请输入新的孩子用户名">
+        <label for="newStudentPassword">创建密码</label>
+        <input id="newStudentPassword" type="password" minlength="4" maxlength="30" autocomplete="new-password" placeholder="至少4个字符">
+        <label for="confirmStudentPassword">确认密码</label>
+        <input id="confirmStudentPassword" type="password" minlength="4" maxlength="30" autocomplete="new-password" placeholder="请再次输入密码">
+        <div id="createStudentError" class="login-error" aria-live="polite"></div>
+        <button class="primary-btn login-confirm" type="submit">创建账号并进入测试</button>
+      </form>
+
+      <small>账号创建后会立即登录。用户名必须准确输入，答案会实时自动保存到当前孩子账号。</small>
+    </section>
+  </dialog>
+
+  <dialog id="settingsDialog">
+    <form method="dialog">
+      <h2>设置</h2>
+      <label class="switch-row">
+        <span>显示正确答案按钮</span>
+        <input id="allowReveal" type="checkbox">
+      </label>
+      <label class="switch-row">
+        <span>忽略大小写和标点</span>
+        <input id="lenientMode" type="checkbox" checked>
+      </label>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost-btn">关闭</button>
+        <button id="resetBtn" value="cancel" class="danger-btn" type="button">清空当前孩子答案</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="jumpDialog">
     <form method="dialog">
       <h2>跳到题号</h2>
-      <input id="jumpInput" type="number" min="1" max="30" inputmode="numeric" placeholder="1–30">
+      <input id="jumpInput" type="number" min="1" inputmode="numeric" placeholder="输入题号">
       <div class="dialog-actions">
         <button value="cancel" class="ghost-btn">取消</button>
-        <button id="jumpConfirm" type="button" class="primary-btn">跳转</button>
+        <button id="jumpConfirm" value="cancel" class="primary-btn" type="button">跳转</button>
       </div>
     </form>
   </dialog>
 
-  <dialog id="resultDialog">
-    <form method="dialog">
-      <h2 id="resultTitle">提交结果</h2>
-      <div id="resultBody"></div>
-      <div class="dialog-actions">
-        <button id="downloadReportBtn" type="button" class="ghost-btn">生成检查文件</button>
-        <button value="close" class="primary-btn">关闭</button>
-      </div>
-    </form>
-  </dialog>
-
-  <script src="account.js?v=20260719-landscape-report-v9"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="data.js?v=20260719-landscape-report-v9"></script>
-  <script src="student.js?v=20260719-landscape-report-v9"></script>
+  <script src="data.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

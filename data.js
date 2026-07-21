@@ -1,267 +1,558 @@
-(() => {
-  "use strict";
-
-  const LOCAL_BANK_KEY = "englishLessonBankV2";
-  const CLOUD_COLLECTION = "englishTestApp";
-  const CLOUD_DOCUMENT = "lessonBank";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyAi-ZzHPmt1bXeK52tNg5f5_gQG3ZLKrUc",
-    authDomain: "english-test-app-ba2c5.firebaseapp.com",
-    projectId: "english-test-app-ba2c5",
-    storageBucket: "english-test-app-ba2c5.firebasestorage.app",
-    messagingSenderId: "551821449937",
-    appId: "1:551821449937:web:36c2195835c724b68583f0"
-  };
-
-  function blankItem() {
-    return { prompt: "", answer: "", audioText: "", mode: "chinese" };
-  }
-
-  function createDefaultBank() {
-    return {
-      1: {
-        title: "Lesson 1",
-        words: Array.from({ length: 30 }, blankItem),
-        phrases: Array.from({ length: 30 }, blankItem),
-        sentences: Array.from({ length: 30 }, blankItem)
-      }
-    };
-  }
-
-  function clone(value) {
-    return JSON.parse(JSON.stringify(value));
-  }
-
-  function normalizeItem(item) {
-    const answer = String(item?.answer || "").trim();
-    return {
-      prompt: String(item?.prompt || "").trim(),
-      answer,
-      audioText: String(item?.audioText || answer).trim(),
-      mode: item?.mode === "audio" ? "audio" : "chinese"
-    };
-  }
-
-  function normalizeBank(input) {
-    const source = input && typeof input === "object" ? input : {};
-    const ids = Object.keys(source)
-      .map(Number)
-      .filter(Number.isInteger)
-      .sort((a, b) => a - b);
-
-    if (!ids.length) return createDefaultBank();
-
-    const output = {};
-    ids.forEach(id => {
-      const lesson = source[id] || {};
-      output[id] = {
-        title: String(lesson.title || `Lesson ${id}`),
-        words: normalizeSection(lesson.words),
-        phrases: normalizeSection(lesson.phrases),
-        sentences: normalizeSection(lesson.sentences)
-      };
-    });
-
-    return output;
-  }
-
-  function normalizeSection(items) {
-    const output = Array.isArray(items)
-      ? items.slice(0, 30).map(normalizeItem)
-      : [];
-
-    while (output.length < 30) output.push(blankItem());
-    return output;
-  }
-
-
-  function countMeaningfulItems(bank) {
-    let count = 0;
-    Object.values(bank || {}).forEach(lesson => {
-      ["words", "phrases", "sentences"].forEach(type => {
-        (lesson?.[type] || []).forEach(item => {
-          if (
-            String(item?.prompt || "").trim() ||
-            String(item?.answer || "").trim() ||
-            String(item?.audioText || "").trim()
-          ) {
-            count += 1;
-          }
-        });
-      });
-    });
-    return count;
-  }
-
-  function hasMeaningfulData(bank) {
-    return countMeaningfulItems(bank) > 0;
-  }
-
-  function chooseInitialBank(localBank, cloudBank) {
-    const localCount = countMeaningfulItems(localBank);
-    const cloudCount = countMeaningfulItems(cloudBank);
-
-    if (localCount > 0 && cloudCount === 0) {
-      return { bank: localBank, source: "local-migration", shouldUpload: true };
-    }
-
-    if (cloudCount > 0) {
-      return { bank: cloudBank, source: "cloud", shouldUpload: false };
-    }
-
-    return { bank: localBank, source: "local", shouldUpload: false };
-  }
-
-  function readLocalBank() {
-    try {
-      const saved = localStorage.getItem(LOCAL_BANK_KEY);
-      return saved ? normalizeBank(JSON.parse(saved)) : createDefaultBank();
-    } catch (error) {
-      console.warn("本地题库读取失败，已使用空白题库。", error);
-      return createDefaultBank();
-    }
-  }
-
-  function writeLocalBank(bank) {
-    const normalized = normalizeBank(bank);
-    localStorage.setItem(LOCAL_BANK_KEY, JSON.stringify(normalized));
-    window.LESSON_BANK = clone(normalized);
-    return normalized;
-  }
-
-  let firebaseApp = null;
-  let firestore = null;
-  let cloudReady = false;
-  let lastSource = "local";
-  let lastError = null;
-
-  function initializeFirebase() {
-    if (cloudReady) return true;
-
-    try {
-      if (!window.firebase?.initializeApp || !window.firebase?.firestore) {
-        throw new Error("Firebase SDK 没有加载完成");
-      }
-
-      firebaseApp = window.firebase.apps?.length
-        ? window.firebase.app()
-        : window.firebase.initializeApp(firebaseConfig);
-
-      firestore = firebaseApp.firestore();
-      cloudReady = true;
-      return true;
-    } catch (error) {
-      lastError = error;
-      console.error("Firebase 初始化失败，将使用本地缓存。", error);
-      return false;
-    }
-  }
-
-  async function loadBank() {
-    const localBank = readLocalBank();
-    window.LESSON_BANK = clone(localBank);
-
-    if (!initializeFirebase()) {
-      lastSource = "local";
-      return clone(localBank);
-    }
-
-    try {
-      const ref = firestore.collection(CLOUD_COLLECTION).doc(CLOUD_DOCUMENT);
-      const snapshot = await ref.get();
-
-      if (!snapshot.exists) {
-        if (hasMeaningfulData(localBank)) {
-          await ref.set({
-            schemaVersion: 2,
-            bank: normalizeBank(localBank),
-            migratedFromLocalAt: window.firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
-          });
-          lastSource = "local-migration";
-          lastError = null;
-          return clone(localBank);
-        }
-
-        lastSource = "local";
-        return clone(localBank);
-      }
-
-      const cloudBank = normalizeBank(snapshot.data()?.bank);
-      const decision = chooseInitialBank(localBank, cloudBank);
-
-      if (decision.shouldUpload) {
-        await ref.set({
-          schemaVersion: 2,
-          bank: normalizeBank(localBank),
-          migratedFromLocalAt: window.firebase.firestore.FieldValue.serverTimestamp(),
-          updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-
-        writeLocalBank(localBank);
-        lastSource = "local-migration";
-        lastError = null;
-        return clone(localBank);
-      }
-
-      writeLocalBank(decision.bank);
-      lastSource = decision.source;
-      lastError = null;
-      return clone(decision.bank);
-    } catch (error) {
-      lastError = error;
-      lastSource = "local";
-      console.error("云端题库读取或首次迁移失败，将使用本地缓存。", error);
-      return clone(localBank);
-    }
-  }
-
-  async function saveBank(bank) {
-    const normalized = writeLocalBank(bank);
-
-    if (!initializeFirebase()) {
-      const error = lastError || new Error("Firebase 尚未连接");
-      return { ok: false, source: "local", error };
-    }
-
-    try {
-      await firestore
-        .collection(CLOUD_COLLECTION)
-        .doc(CLOUD_DOCUMENT)
-        .set({
-          schemaVersion: 1,
-          bank: normalized,
-          updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-      lastSource = "cloud";
-      lastError = null;
-      return { ok: true, source: "cloud" };
-    } catch (error) {
-      lastError = error;
-      lastSource = "local";
-      console.error("云端题库保存失败，已保存在当前设备。", error);
-      return { ok: false, source: "local", error };
-    }
-  }
-
-  function getStatus() {
-    return {
-      cloudReady,
-      source: lastSource,
-      error: lastError ? String(lastError.message || lastError) : ""
-    };
-  }
-
-  window.DEFAULT_LESSON_BANK = createDefaultBank();
-  window.LESSON_BANK = readLocalBank();
-  window.LessonDataService = Object.freeze({
-    loadBank,
-    saveBank,
-    getStatus,
-    normalizeBank,
-    readLocalBank,
-    countMeaningfulItems
-  });
-})();
+const QUESTION_BANK = {
+  "words": [
+    "private",
+    "conversation",
+    "theatre",
+    "seat",
+    "play",
+    "interesting",
+    "loudly",
+    "angry",
+    "actors",
+    "attention",
+    "bear",
+    "rudely",
+    "business",
+    "breakfast",
+    "lunch",
+    "Sunday",
+    "sometimes",
+    "lunchtime",
+    "window",
+    "outside",
+    "raining",
+    "telephone",
+    "arrived",
+    "train",
+    "repeated",
+    "surprised",
+    "postcard",
+    "spoil",
+    "holidays",
+    "Italy",
+    "museums",
+    "public",
+    "gardens",
+    "friendly",
+    "waiter",
+    "taught",
+    "Italian",
+    "lent",
+    "understand",
+    "decision",
+    "bought",
+    "single",
+    "exciting",
+    "trip",
+    "received",
+    "letter",
+    "brother",
+    "Australia",
+    "engineer",
+    "firm",
+    "visited",
+    "different",
+    "places",
+    "centre",
+    "abroad",
+    "garage",
+    "another",
+    "telephone",
+    "pigeons",
+    "carried",
+    "message",
+    "distance",
+    "minutes",
+    "requests",
+    "spare",
+    "parts",
+    "urgent",
+    "service",
+    "neighbour",
+    "everybody",
+    "street",
+    "meal",
+    "beer",
+    "detectives",
+    "airport",
+    "valuable",
+    "parcel",
+    "diamonds",
+    "police",
+    "thieves",
+    "steal",
+    "arrived",
+    "building",
+    "airfield",
+    "Customs",
+    "guard",
+    "surprise",
+    "precious",
+    "competition",
+    "beautiful",
+    "nearly",
+    "wins",
+    "larger",
+    "harder",
+    "vegetables",
+    "paths",
+    "wooden",
+    "bridge",
+    "musical",
+    "instrument",
+    "complain",
+    "behind",
+    "enjoy",
+    "hear",
+    "turned",
+    "angrily",
+    "none",
+    "rude",
+    "late",
+    "early",
+    "dark",
+    "thought",
+    "again",
+    "rang",
+    "aunt",
+    "dear",
+    "always",
+    "card",
+    "summer",
+    "words",
+    "lines",
+    "friends",
+    "whole",
+    "room",
+    "wrote",
+    "Australian",
+    "town",
+    "soon",
+    "fly",
+    "before",
+    "wrong",
+    "numbers",
+    "miles",
+    "first",
+    "sent",
+    "own",
+    "food",
+    "cheese",
+    "pocket",
+    "month",
+    "asks",
+    "save",
+    "plane",
+    "expecting",
+    "earlier",
+    "inside",
+    "opened",
+    "stones",
+    "sand",
+    "damaged"
+  ],
+  "phrases": [
+    "a private conversation",
+    "go to the theatre",
+    "last week",
+    "a very good seat",
+    "an interesting play",
+    "enjoy the play",
+    "sit behind me",
+    "talk loudly",
+    "get very angry",
+    "hear the actors",
+    "turn round",
+    "look at him angrily",
+    "pay attention",
+    "pay no attention",
+    "in the end",
+    "bear it",
+    "turn round again",
+    "hear a word",
+    "say angrily",
+    "say rudely",
+    "none of your business",
+    "a rude young man",
+    "a young woman",
+    "sit behind someone",
+    "look out of the window",
+    "get up early",
+    "get up late",
+    "on Sundays",
+    "stay in bed",
+    "until lunchtime",
+    "last Sunday",
+    "very late",
+    "dark outside",
+    "what a day",
+    "rain again",
+    "just then",
+    "the telephone rang",
+    "arrive by train",
+    "come to see you",
+    "have breakfast",
+    "still having breakfast",
+    "repeat the words",
+    "dear me",
+    "so late",
+    "at one o’clock",
+    "breakfast or lunch",
+    "be surprised",
+    "my aunt Lucy",
+    "on Sunday morning",
+    "look outside",
+    "send me a card",
+    "send postcards",
+    "spoil my holidays",
+    "last summer",
+    "go to Italy",
+    "visit museums",
+    "sit in public gardens",
+    "a friendly waiter",
+    "a few words",
+    "a few words of Italian",
+    "teach me Italian",
+    "lend me a book",
+    "read a few lines",
+    "understand a word",
+    "every day",
+    "think about postcards",
+    "pass quickly",
+    "send cards to friends",
+    "on the last day",
+    "make a big decision",
+    "get up early",
+    "buy thirty-seven cards",
+    "spend the whole day",
+    "in my room",
+    "write a single card",
+    "not write a single card",
+    "an exciting trip",
+    "receive a letter",
+    "from my brother",
+    "be in Australia",
+    "for six months",
+    "work for a firm",
+    "a big firm",
+    "visit many places",
+    "a great number of places",
+    "different places",
+    "buy an Australian car",
+    "go to Alice Springs",
+    "a small town",
+    "in the centre of Australia",
+    "visit Darwin",
+    "fly to Perth",
+    "from there",
+    "never been abroad",
+    "before this trip",
+    "find the trip exciting",
+    "No wrong numbers",
+    "a wrong number",
+    "have a garage",
+    "buy another garage",
+    "in Silbury",
+    "in Pinhurst",
+    "five miles from Silbury",
+    "get a telephone",
+    "his new garage",
+    "buy twelve pigeons",
+    "carry the first message",
+    "from Pinhurst to Silbury",
+    "cover the distance",
+    "in three minutes",
+    "up to now",
+    "a great many requests",
+    "spare parts",
+    "urgent messages",
+    "from one garage to the other",
+    "in this way",
+    "his own telephone service",
+    "a private telephone service",
+    "call at every house",
+    "in the street",
+    "once a month",
+    "ask for a meal",
+    "a glass of beer",
+    "a piece of cheese",
+    "put it in his pocket",
+    "go away",
+    "later a neighbour told me",
+    "everybody knows him",
+    "his name is Percy Buttons",
+    "ask for food",
+    "finish the food",
+    "drink the beer",
+    "too late",
+    "wait at the airport",
+    "all morning",
+    "a valuable parcel",
+    "a parcel of diamonds",
+    "from South Africa",
+    "a few hours earlier",
+    "tell the police",
+    "try to steal",
+    "steal the diamonds",
+    "when the plane arrived",
+    "inside the main building",
+    "on the airfield",
+    "take the parcel off the plane",
+    "carry it into the Customs House",
+    "keep guard at the door",
+    "open the parcel",
+    "to their surprise",
+    "the precious parcel",
+    "full of stones and sand",
+    "save the diamonds",
+    "wait inside",
+    "wait outside",
+    "two detectives",
+    "the main building",
+    "the Customs House",
+    "the best and the worst",
+    "the most beautiful garden",
+    "in our town",
+    "nearly everybody",
+    "enter for the competition",
+    "the Nicest Garden Competition",
+    "each year",
+    "win every time",
+    "larger than Joe’s",
+    "work harder than Joe",
+    "grow more flowers",
+    "grow more vegetables",
+    "more interesting",
+    "make neat paths",
+    "build a wooden bridge",
+    "over a pool",
+    "like gardens",
+    "hard work",
+    "win a little prize",
+    "the worst garden",
+    "in the town",
+    "enter the garden competition",
+    "not for jazz",
+    "an old musical instrument",
+    "be called a clavichord",
+    "made in Germany",
+    "in 1681",
+    "kept in the living room",
+    "belong to our family",
+    "for a long time",
+    "many years ago",
+    "bought by my grandfather",
+    "recently damaged",
+    "damaged by a visitor",
+    "try to play jazz",
+    "strike the keys too hard",
+    "two of the strings",
+    "be broken",
+    "my father was shocked",
+    "not allowed to touch it",
+    "be repaired",
+    "a friend of my father’s"
+  ],
+  "sentences": [
+    "I went to the theatre last week.",
+    "I had a very good seat.",
+    "The play was very interesting.",
+    "I did not enjoy the play.",
+    "A young man sat behind me.",
+    "A young woman was talking loudly.",
+    "They were talking all the time.",
+    "I became very angry.",
+    "I could not hear the actors.",
+    "I turned round slowly.",
+    "I looked at them angrily.",
+    "They paid no attention to me.",
+    "I could not bear it.",
+    "I turned round again.",
+    "I said it very angrily.",
+    "I cannot hear a word.",
+    "The young man was very rude.",
+    "He said it was none of my business.",
+    "It was a private conversation.",
+    "They spoke too loudly.",
+    "I never get up early on Sundays.",
+    "I sometimes stay in bed late.",
+    "Last Sunday I got up very late.",
+    "I looked out of the window.",
+    "It was dark outside.",
+    "It was raining again.",
+    "What a bad day it was!",
+    "Just then, the telephone rang.",
+    "My aunt called me.",
+    "She had just arrived by train.",
+    "She was coming to see me.",
+    "I was still having breakfast.",
+    "She asked me a question.",
+    "I repeated my answer.",
+    "My aunt was very surprised.",
+    "It was already one o’clock.",
+    "I got up too late.",
+    "I was having breakfast at lunchtime.",
+    "She could not believe it.",
+    "Sunday is my lazy day.",
+    "Postcards always spoil my holidays.",
+    "I went to Italy last summer.",
+    "I visited many museums.",
+    "I sat in public gardens.",
+    "A friendly waiter helped me.",
+    "He taught me some Italian words.",
+    "He lent me a small book.",
+    "I read a few lines.",
+    "I did not understand a word.",
+    "Every day I thought about postcards.",
+    "My holiday passed very quickly.",
+    "I did not send any cards.",
+    "I wanted to write to my friends.",
+    "On the last day, I got up early.",
+    "I bought thirty-seven cards.",
+    "I spent the whole day in my room.",
+    "I did not write a single card.",
+    "The cards were still blank.",
+    "I made a big decision.",
+    "The decision was not useful.",
+    "I received a letter yesterday.",
+    "The letter was from my brother.",
+    "My brother is in Australia.",
+    "He has been there for six months.",
+    "Tim is an engineer.",
+    "He works for a big firm.",
+    "He has visited many places.",
+    "Australia is very big.",
+    "He has bought a new car.",
+    "It is an Australian car.",
+    "He has gone to Alice Springs.",
+    "Alice Springs is a small town.",
+    "It is in the centre of Australia.",
+    "He will visit Darwin soon.",
+    "From Darwin, he will fly to Perth.",
+    "Tim has never been abroad before.",
+    "He finds this trip exciting.",
+    "He is enjoying his trip.",
+    "He writes to me often.",
+    "I am happy to hear from him.",
+    "Mr. Scott has a garage.",
+    "His garage is in Silbury.",
+    "He has bought another garage.",
+    "The new garage is in Pinhurst.",
+    "Pinhurst is not far from Silbury.",
+    "It is only five miles away.",
+    "He cannot get a telephone.",
+    "He bought twelve pigeons.",
+    "A pigeon carried the first message.",
+    "The bird flew very fast.",
+    "It covered the distance in three minutes.",
+    "Mr. Scott has sent many messages.",
+    "He sends requests for spare parts.",
+    "Some messages are very urgent.",
+    "He sends messages from one garage to the other.",
+    "He has his own telephone service.",
+    "The pigeons are very useful.",
+    "There are no wrong numbers.",
+    "This is a clever idea.",
+    "His service works very well.",
+    "A man came to my house.",
+    "He asked me for a meal.",
+    "I gave him some food.",
+    "He ate the food quickly.",
+    "He drank a glass of beer.",
+    "He put cheese in his pocket.",
+    "Then he went away.",
+    "A neighbour told me about him.",
+    "Everybody knows that man.",
+    "His name is Percy Buttons.",
+    "He calls at every house.",
+    "He comes once a month.",
+    "He always asks for a meal.",
+    "He also asks for beer.",
+    "He is well known in the street.",
+    "People often give him food.",
+    "He never stays very long.",
+    "He leaves after the meal.",
+    "The neighbour knew his story.",
+    "Percy likes free meals.",
+    "The plane was late.",
+    "The detectives waited at the airport.",
+    "They waited all morning.",
+    "They expected a valuable parcel.",
+    "The parcel came from South Africa.",
+    "It was a parcel of diamonds.",
+    "The police heard the news earlier.",
+    "Thieves wanted to steal the diamonds.",
+    "Some detectives waited inside.",
+    "Others waited on the airfield.",
+    "Two men took the parcel off the plane.",
+    "They carried it into the Customs House.",
+    "Two detectives kept guard at the door.",
+    "Two others opened the parcel.",
+    "They were very surprised.",
+    "The parcel was full of stones.",
+    "It was also full of sand.",
+    "The diamonds were not there.",
+    "The detectives were too late.",
+    "The thieves had already stolen them.",
+    "Joe has a beautiful garden.",
+    "His garden is the best in town.",
+    "Many people enter the competition.",
+    "Joe wins the prize every year.",
+    "Bill’s garden is larger than Joe’s.",
+    "Bill works harder than Joe.",
+    "Bill grows many flowers.",
+    "He also grows vegetables.",
+    "Joe’s garden is more interesting.",
+    "He has made neat paths.",
+    "He has built a wooden bridge.",
+    "The bridge is over a pool.",
+    "I like gardens very much.",
+    "I do not like hard work.",
+    "I enter the competition every year.",
+    "I always win a little prize.",
+    "My garden is the worst in town.",
+    "Joe’s garden looks very neat.",
+    "The flowers are beautiful.",
+    "The garden competition is interesting.",
+    "We have an old musical instrument.",
+    "It is called a clavichord.",
+    "It was made in Germany.",
+    "It was made many years ago.",
+    "We keep it in the living room.",
+    "It has belonged to our family for years.",
+    "My grandfather bought it long ago.",
+    "A visitor damaged it recently.",
+    "She tried to play jazz on it.",
+    "She struck the keys too hard.",
+    "Two strings were broken.",
+    "My father was shocked.",
+    "We are not allowed to touch it now.",
+    "It is being repaired now.",
+    "A friend of my father’s is repairing it.",
+    "The instrument is very old.",
+    "We must be careful with it.",
+    "It is not for jazz.",
+    "My father loves the clavichord.",
+    "The visitor was careless.",
+    "I went out last Sunday.",
+    "My friend came to see me.",
+    "He arrived very late.",
+    "I was waiting for him.",
+    "We talked for a long time.",
+    "He told me an interesting story.",
+    "I could not understand everything.",
+    "He spoke very quickly.",
+    "I asked him to repeat it.",
+    "He repeated the sentence slowly.",
+    "I wrote the words in my book.",
+    "I learned many new phrases.",
+    "The lesson was not easy.",
+    "The question was very simple.",
+    "The answer was quite difficult.",
+    "I made a small mistake.",
+    "My teacher helped me.",
+    "I listened carefully.",
+    "I read the sentence again.",
+    "I will practise every day."
+  ]
+};
