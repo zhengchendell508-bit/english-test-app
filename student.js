@@ -397,8 +397,9 @@
       if (event.key === " " || event.key === "Enter") hideHint(event);
     });
     hintButton.addEventListener("blur", hideHint);
-    top.appendChild(hintButton);
 
+    // 交换按钮位置：听声按钮在左，按住提示按钮在右，
+    // 让孩子按住右侧提示时，手指尽量不遮挡中文内容。
     const playableText = item.audioText || item.answer;
     if (playableText) {
       const audioButton = document.createElement("button");
@@ -409,6 +410,7 @@
       audioButton.addEventListener("click", () => speak(playableText));
       top.appendChild(audioButton);
     }
+    top.appendChild(hintButton);
 
     const input = document.createElement(
       currentSection === "sentences" ? "textarea" : "input"
