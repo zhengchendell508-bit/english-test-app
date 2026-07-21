@@ -346,3 +346,40 @@ pre{overflow:auto;background:#f4f6f9;padding:14px;border-radius:12px}
 .student-only-device .mobile-computer-note{display:block}
 .student-only-device .role-grid{grid-template-columns:minmax(0,560px);justify-content:center}
 .student-only-device .child-role{width:100%}
+
+/* 2026-07-20：所有测试题中文默认隐藏，仅按住提示按钮时显示 */
+.chinese-prompt.hint-hidden{
+  display:none;
+}
+.chinese-prompt.hint-visible{
+  display:block;
+  flex:1 1 100%;
+  min-width:0;
+  padding:7px 10px;
+  border-radius:9px;
+  background:#fff8df;
+  color:#76530f;
+  font-size:15px;
+  font-weight:700;
+  line-height:1.45;
+  word-break:break-word;
+}
+.hint-hold-btn{
+  flex:0 0 auto;
+  min-height:34px;
+  padding:6px 11px;
+  border:1px solid #edcf89;
+  border-radius:9px;
+  background:#fff9e8;
+  color:#815d0b;
+  font-weight:750;
+  cursor:pointer;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
+  touch-action:none;
+}
+.hint-hold-btn.is-holding{
+  background:#ffe8a8;
+  border-color:#d9aa38;
+}

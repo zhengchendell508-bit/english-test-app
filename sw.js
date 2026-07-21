@@ -1,4 +1,4 @@
-const CACHE = "english-test-landscape-report-v9";
+const CACHE = "english-test-hold-hint-v10";
 const ASSETS = [
   "./",
   "./index.html",

@@ -350,31 +350,64 @@
     heading.textContent = `${index + 1}.`;
     top.appendChild(heading);
 
-    if (item.mode === "audio") {
+    // 单词、短语、句子测试时，中文默认隐藏。
+    // 孩子只有在按住“提示”按钮期间才能看到中文，松开后立即隐藏。
+    const prompt = document.createElement("span");
+    prompt.className = "chinese-prompt hint-hidden";
+    prompt.textContent = item.prompt || "暂无中文提示";
+    prompt.setAttribute("aria-hidden", "true");
+    top.appendChild(prompt);
+
+    const hintButton = document.createElement("button");
+    hintButton.type = "button";
+    hintButton.className = "hint-hold-btn";
+    hintButton.textContent = "按住提示";
+    hintButton.setAttribute("aria-label", `按住查看${sectionLabel}第${index + 1}题的中文意思`);
+
+    const showHint = event => {
+      if (event) event.preventDefault();
+      prompt.classList.remove("hint-hidden");
+      prompt.classList.add("hint-visible");
+      prompt.setAttribute("aria-hidden", "false");
+      hintButton.classList.add("is-holding");
+      hintButton.textContent = "松开隐藏";
+    };
+
+    const hideHint = event => {
+      if (event) event.preventDefault();
+      prompt.classList.remove("hint-visible");
+      prompt.classList.add("hint-hidden");
+      prompt.setAttribute("aria-hidden", "true");
+      hintButton.classList.remove("is-holding");
+      hintButton.textContent = "按住提示";
+    };
+
+    hintButton.addEventListener("pointerdown", event => {
+      hintButton.setPointerCapture?.(event.pointerId);
+      showHint(event);
+    });
+    hintButton.addEventListener("pointerup", hideHint);
+    hintButton.addEventListener("pointercancel", hideHint);
+    hintButton.addEventListener("lostpointercapture", hideHint);
+    hintButton.addEventListener("contextmenu", event => event.preventDefault());
+    hintButton.addEventListener("keydown", event => {
+      if (event.key === " " || event.key === "Enter") showHint(event);
+    });
+    hintButton.addEventListener("keyup", event => {
+      if (event.key === " " || event.key === "Enter") hideHint(event);
+    });
+    hintButton.addEventListener("blur", hideHint);
+    top.appendChild(hintButton);
+
+    const playableText = item.audioText || item.answer;
+    if (playableText) {
       const audioButton = document.createElement("button");
       audioButton.type = "button";
-      audioButton.className = "audio-btn";
-      audioButton.textContent = "🔊 听声音";
-      audioButton.addEventListener("click", () => {
-        speak(item.audioText || item.answer);
-      });
+      audioButton.className = item.mode === "audio" ? "audio-btn" : "small-audio";
+      audioButton.textContent = item.mode === "audio" ? "🔊 听声音" : "🔊";
+      audioButton.setAttribute("aria-label", "播放英文");
+      audioButton.addEventListener("click", () => speak(playableText));
       top.appendChild(audioButton);
-    } else {
-      const prompt = document.createElement("span");
-      prompt.className = "chinese-prompt";
-      prompt.textContent = item.prompt || "中文提示";
-      top.appendChild(prompt);
-
-      const playableText = item.audioText || item.answer;
-      if (playableText) {
-        const smallAudio = document.createElement("button");
-        smallAudio.type = "button";
-        smallAudio.className = "small-audio";
-        smallAudio.textContent = "🔊";
-        smallAudio.setAttribute("aria-label", "播放英文");
-        smallAudio.addEventListener("click", () => speak(playableText));
-        top.appendChild(smallAudio);
-      }
     }
 
     const input = document.createElement(
