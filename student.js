@@ -502,50 +502,57 @@
       .replace(/\s+/g, " ");
   }
 
-  function submitSection() {
-    const section = sections[currentSection];
-    const answered = completedCount(currentSection);
-    let correct = 0;
-    const wrong = [];
-
-    section.items.forEach((item, index) => {
-      const studentAnswer = normalizeAnswer(state[currentSection][index]);
-      const correctAnswer = normalizeAnswer(item.answer);
-
-      if (studentAnswer && studentAnswer === correctAnswer) {
-        correct += 1;
-      } else if (studentAnswer) {
-        wrong.push(index + 1);
-      }
-    });
+  function finalizeLessonSubmission() {
+    saveNow();
 
     const keys = getStorageKeys(currentLessonId);
-    const submitted = readJson(keys.submitted, {});
-    submitted[currentSection] = {
-      submittedAt: Date.now(),
-      answered,
-      correct
-    };
+    const submittedAt = Date.now();
+    const submitted = {};
+
+    SECTION_ORDER.forEach(sectionName => {
+      submitted[sectionName] = {
+        submittedAt,
+        answered: completedCount(sectionName)
+      };
+    });
+
     localStorage.setItem(keys.submitted, JSON.stringify(submitted));
+    finishLessonTimer();
+  }
 
-    $("resultTitle").textContent = `${section.label}提交结果`;
-    $("resultBody").innerHTML = `
-      <div class="result-summary">
-        <strong>已填写：${answered} / ${QUESTION_COUNT}</strong>
-        <strong>正确：${correct} / ${QUESTION_COUNT}</strong>
-        <strong>未填写：${QUESTION_COUNT - answered}</strong>
-      </div>
-      ${
-        wrong.length
-          ? `<p>需要检查的题号：${wrong.join("、")}</p>`
-          : "<p>本部分没有发现错误。</p>"
-      }
-      <p class="muted">计时器会继续累计，直到三个部分全部正式提交完成。</p>
-    `;
-    $("resultDialog").showModal();
+  function submitLesson() {
+    const progress = SECTION_ORDER.map(sectionName => ({
+      sectionName,
+      label: sections[sectionName].label,
+      answered: completedCount(sectionName)
+    }));
 
-    const allSubmitted = SECTION_ORDER.every(sectionName => submitted[sectionName]);
-    if (allSubmitted) finishLessonTimer();
+    const incomplete = progress.filter(item => item.answered < QUESTION_COUNT);
+    const forceSubmitBtn = $("forceSubmitBtn");
+    const downloadReportBtn = $("downloadReportBtn");
+
+    if (incomplete.length) {
+      const missingDetails = incomplete
+        .map(item => `${item.label}还差 ${QUESTION_COUNT - item.answered} 题`)
+        .join("、");
+
+      $("resultTitle").textContent = "还有题目没有填写";
+      $("resultBody").innerHTML = `
+        <div class="result-summary">
+          <strong>${escapeHtml(missingDetails)}</strong>
+        </div>
+        <p>这些题目可以先返回继续填写；如果确实不会，也可以点击“依然提交”。</p>
+        <p class="muted">未填写的题目会在生成的检查文件中显示为“未作答”。</p>
+      `;
+      downloadReportBtn.hidden = true;
+      forceSubmitBtn.hidden = false;
+      $("resultDialog").showModal();
+      return;
+    }
+
+    // 全部题目都已填写：直接提交并生成检查文件，不再弹出确认。
+    finalizeLessonSubmission();
+    downloadCheckReport();
   }
 
   function finishLessonTimer() {
@@ -731,9 +738,14 @@
       }
     });
 
-    $("submitTopBtn").addEventListener("click", submitSection);
-    $("submitBottomBtn").addEventListener("click", submitSection);
+    $("submitTopBtn").addEventListener("click", submitLesson);
+    $("submitBottomBtn").addEventListener("click", submitLesson);
     $("downloadReportBtn").addEventListener("click", downloadCheckReport);
+    $("forceSubmitBtn").addEventListener("click", () => {
+      $("resultDialog").close();
+      finalizeLessonSubmission();
+      downloadCheckReport();
+    });
 
     $("jumpBtn").addEventListener("click", () => {
       $("jumpDialog").showModal();
