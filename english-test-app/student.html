@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f6f8fc">
+  <title>新概念英语答案 App</title>
+  <link rel="stylesheet" href="style.css?v=20260722-cloud-excel-v18">
+  <script src="device-mode.js?v=20260722-cloud-excel-v18"></script>
+</head>
+<body class="student-body">
+  <header class="exam-header">
+    <div class="brand-block">
+      <span class="brand-logo">📖</span>
+      <strong>新概念英语答案 App</strong>
+    </div>
+
+    <div class="header-info child-info">
+      <span>👤 当前孩子</span>
+      <strong id="activeChildName">未选择</strong>
+    </div>
+
+    <div class="header-info timer-info">
+      <span>⏱️ 计时器</span>
+      <strong id="elapsedTime">00:00:00</strong>
+    </div>
+
+    <div class="header-info start-info">
+      <span>🕒 本次开始时间</span>
+      <strong id="startTime">--</strong>
+    </div>
+
+    <button class="progress-tab active" data-section="words">
+      <span>单词</span><strong id="wordsProgress">0 / 30</strong>
+      <i><b id="wordsBar"></b></i>
+    </button>
+    <button class="progress-tab" data-section="phrases">
+      <span>短语</span><strong id="phrasesProgress">0 / 30</strong>
+      <i><b id="phrasesBar"></b></i>
+    </button>
+    <button class="progress-tab" data-section="sentences">
+      <span>句子</span><strong id="sentencesProgress">0 / 30</strong>
+      <i><b id="sentencesBar"></b></i>
+    </button>
+
+    <div id="saveStatus" class="save-chip">✓ 已自动保存</div>
+    <a class="switch-child" href="children.html">切换孩子</a>
+  </header>
+
+  <main class="exam-shell">
+    <section class="lesson-card">
+      <div class="lesson-toolbar">
+        <div class="lesson-heading-group">
+          <div>
+            <h1 id="sectionTitle">Lesson 1 - 单词</h1>
+            <p id="sectionSub">第 1 部分，共 3 部分（单词 30 题、短语 30 题、句子 30 题）</p>
+          </div>
+          <label class="student-lesson-picker">
+            <span>选择 Lesson</span>
+            <select id="lessonSelect" aria-label="选择要测试的 Lesson"></select>
+          </label>
+        </div>
+        <div class="toolbar-actions">
+          <button id="jumpBtn" class="ghost-btn">跳到题号</button>
+          <button id="submitTopBtn" class="primary-btn">提交整个 Lesson</button>
+        </div>
+      </div>
+
+      <div class="section-progress">
+        <span id="progressText">已完成 0 / 30 题</span>
+        <div class="long-progress"><b id="longProgressBar"></b></div>
+        <span id="progressPercent">0%</span>
+      </div>
+
+      <div class="ipad-layout">
+        <div class="question-area">
+          <div id="questions" class="question-cards"></div>
+
+          <div class="page-controls">
+            <button id="prevPageBtn" class="ghost-btn">上一页</button>
+            <span id="pageInfo">第 1 / 3 页</span>
+            <button id="nextPageBtn" class="primary-btn">下一页</button>
+          </div>
+
+          <div id="bottomSubmitArea" class="bottom-submit hidden">
+            <p>完成单词、短语和句子全部 90 题后，才能提交整个 Lesson。</p>
+            <button id="submitBottomBtn" class="submit-large">提交整个 Lesson</button>
+          </div>
+        </div>
+
+        <aside class="question-nav">
+          <h2>题目导航</h2>
+          <div class="legend">
+            <span><i class="done-dot"></i>已填写</span>
+            <span><i class="current-dot"></i>当前题</span>
+            <span><i class="empty-dot"></i>未作答</span>
+          </div>
+          <div id="numberGrid" class="number-grid"></div>
+          <div class="audio-tip">
+            <strong>🔊 听音题</strong>
+            <p>点击喇叭听英文，然后输入英文答案。</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="jumpDialog">
+    <form method="dialog">
+      <h2>跳到题号</h2>
+      <input id="jumpInput" type="number" min="1" max="30" inputmode="numeric" placeholder="1–30">
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost-btn">取消</button>
+        <button id="jumpConfirm" type="button" class="primary-btn">跳转</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="resultDialog">
+    <form method="dialog">
+      <h2 id="resultTitle">提交结果</h2>
+      <div id="resultBody"></div>
+      <div class="dialog-actions">
+        <button id="forceSubmitBtn" type="button" class="primary-btn" hidden>依然提交</button>
+        <button value="close" class="primary-btn">关闭</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="account.js?v=20260722-cloud-excel-v18"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="submission-store.js?v=20260722-cloud-excel-v18"></script>
+  <script src="data.js?v=20260722-cloud-excel-v18"></script>
+  <script src="student.js?v=20260722-cloud-excel-v18"></script>
+</body>
+</html>
