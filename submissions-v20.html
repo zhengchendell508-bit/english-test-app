@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>孩子作业记录</title>
+  <link rel="stylesheet" href="style.css?v=20260722-cloud-excel-delete-v20">
+  <script src="device-mode.js?v=20260722-cloud-excel-delete-v20"></script>
+  <script>
+    if (window.AppDeviceMode?.isStudentOnlyDevice) location.replace("children.html");
+  </script>
+  <style>
+    .submission-actions-v20{display:flex!important;align-items:center;gap:9px;flex:0 0 auto}
+    .submission-actions-v20 button{display:inline-flex!important;align-items:center;justify-content:center;visibility:visible!important}
+    .submission-delete-v20{min-height:44px;padding:0 16px;border:1px solid #e8aaaa;border-radius:12px;background:#fff0f0;color:#b42318;font-weight:750;cursor:pointer;white-space:nowrap}
+    @media(max-width:650px){.submission-actions-v20{width:100%;align-items:stretch;flex-direction:column}.submission-actions-v20 button{width:100%}}
+  </style>
+</head>
+<body>
+  <main class="simple-shell submissions-shell">
+    <header class="simple-header">
+      <a href="children.html?manage=1" class="back-btn">‹</a>
+      <div><h1 id="pageTitle">孩子作业记录</h1><p>查看、下载或删除已经提交的测试</p></div>
+    </header>
+    <section class="panel">
+      <div id="loadingState" class="submission-empty">正在同步提交记录…</div>
+      <div id="emptyState" class="submission-empty hidden">
+        <div class="empty-emoji">📄</div><h2>还没有提交记录</h2>
+        <p>孩子完成测试并点击“提交整个 Lesson”后，记录会显示在这里。</p>
+      </div>
+      <div id="submissionList" class="submission-list hidden"></div>
+    </section>
+  </main>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="account.js?v=20260722-cloud-excel-delete-v20"></script>
+  <script src="submission-store.js?v=20260722-cloud-excel-delete-v20"></script>
+  <script src="vendor/exceljs.min.js?v=20260722-cloud-excel-delete-v20"></script>
+  <script src="report.js?v=20260722-cloud-excel-delete-v20"></script>
+  <script>
+    (async () => {
+      const childId = new URLSearchParams(location.search).get("child") || "";
+      const loading = document.getElementById("loadingState");
+      const empty = document.getElementById("emptyState");
+      const list = document.getElementById("submissionList");
+      const children = await loadChildren();
+      const child = children.find(item => item.id === childId);
+      if (!child) { loading.textContent = "找不到这个孩子，请返回“管理孩子”重新选择。"; return; }
+      document.getElementById("pageTitle").textContent = `${child.name}的作业记录`;
+      const records = await loadChildSubmissions(child.id);
+      loading.classList.add("hidden");
+      if (!records.length) { empty.classList.remove("hidden"); return; }
+      list.classList.remove("hidden");
+
+      records.forEach(record => {
+        const card = document.createElement("article");
+        card.className = "submission-card";
+        const copy = document.createElement("div");
+        copy.className = "submission-copy";
+        const title = document.createElement("strong");
+        const lessonName = record.lessonTitle || `Lesson ${record.lessonId}`;
+        title.textContent = lessonName;
+        const details = document.createElement("span");
+        details.textContent = `${new Date(record.submittedAt).toLocaleString("zh-CN")} · 用时 ${EnglishTestReport.formatClock(record.elapsedMs)}`;
+        copy.append(title, details);
+
+        const actions = document.createElement("div");
+        actions.className = "submission-actions-v20";
+        const downloadButton = document.createElement("button");
+        downloadButton.type = "button";
+        downloadButton.className = "primary-btn submission-download";
+        downloadButton.textContent = "下载 Excel";
+        downloadButton.onclick = async () => {
+          if (downloadButton.disabled) return;
+          downloadButton.disabled = true;
+          try { downloadButton.textContent = "正在生成…"; await EnglishTestReport.downloadExcel(record); downloadButton.textContent = "已下载"; }
+          catch (error) { console.error(error); alert(error.message || "Excel 生成失败，请刷新页面后再试。"); downloadButton.textContent = "下载 Excel"; }
+          finally { downloadButton.disabled = false; }
+        };
+
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "submission-delete-v20";
+        deleteButton.textContent = "删除作业";
+        deleteButton.onclick = async () => {
+          if (deleteButton.disabled || !confirm(`确定删除“${lessonName}”这份作业吗？\n\n删除后将无法恢复。`)) return;
+          downloadButton.disabled = true; deleteButton.disabled = true; deleteButton.textContent = "删除中…";
+          try {
+            await deleteSubmissionRecord(record.id, child.id);
+            card.remove();
+            if (!list.children.length) { list.classList.add("hidden"); empty.classList.remove("hidden"); }
+          } catch (error) {
+            console.error(error); alert(error.message || "作业删除失败，请检查网络后再试。");
+            downloadButton.disabled = false; deleteButton.disabled = false; deleteButton.textContent = "删除作业";
+          }
+        };
+        actions.append(downloadButton, deleteButton);
+        card.append(copy, actions);
+        list.appendChild(card);
+      });
+    })().catch(error => {
+      console.error(error);
+      const loading = document.getElementById("loadingState");
+      loading.textContent = error.message || "作业记录加载失败，请刷新页面后再试。";
+    });
+  </script>
+</body>
+</html>

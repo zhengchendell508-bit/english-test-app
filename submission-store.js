@@ -141,6 +141,42 @@
     }
   }
 
+  async function deleteSubmissionRecord(recordId, childId) {
+    const cleanRecordId = String(recordId || "").trim();
+    const cleanChildId = String(childId || "").trim();
+    if (!cleanRecordId || !cleanChildId) {
+      throw new Error("无法确定要删除的作业记录");
+    }
+
+    const db = initializeFirestore();
+    const documentRef = db
+      .collection(CLOUD_COLLECTION)
+      .doc(CLOUD_DOCUMENT)
+      .collection(CLOUD_SUBCOLLECTION)
+      .doc(cleanRecordId);
+
+    const snapshot = await documentRef.get();
+    if (snapshot.exists) {
+      const savedChildId = String(snapshot.data()?.childId || "").trim();
+      if (savedChildId && savedChildId !== cleanChildId) {
+        throw new Error("这份作业不属于当前孩子，无法删除");
+      }
+    }
+
+    await documentRef.delete();
+
+    try {
+      saveLocal(loadLocal().filter(record =>
+        record.id !== cleanRecordId || record.childId !== cleanChildId
+      ));
+    } catch (error) {
+      console.error("已删除云端作业，但当前设备缓存更新失败。", error);
+    }
+
+    return { ok: true, recordId: cleanRecordId };
+  }
+
   window.saveSubmissionRecord = saveSubmissionRecord;
   window.loadChildSubmissions = loadChildSubmissions;
+  window.deleteSubmissionRecord = deleteSubmissionRecord;
 })();

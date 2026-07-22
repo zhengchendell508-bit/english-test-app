@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>孩子作业记录</title>
-  <link rel="stylesheet" href="style.css?v=20260722-cloud-excel-v18">
-  <script src="device-mode.js?v=20260722-cloud-excel-v18"></script>
+  <link rel="stylesheet" href="style.css?v=20260722-cloud-excel-delete-v19">
+  <script src="device-mode.js?v=20260722-cloud-excel-delete-v19"></script>
   <script>
     if (window.AppDeviceMode?.isStudentOnlyDevice) {
       location.replace("children.html");
@@ -35,10 +35,10 @@
 
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="account.js?v=20260722-cloud-excel-v18"></script>
-  <script src="submission-store.js?v=20260722-cloud-excel-v18"></script>
-  <script src="vendor/exceljs.min.js?v=20260722-cloud-excel-v18"></script>
-  <script src="report.js?v=20260722-cloud-excel-v18"></script>
+  <script src="account.js?v=20260722-cloud-excel-delete-v19"></script>
+  <script src="submission-store.js?v=20260722-cloud-excel-delete-v19"></script>
+  <script src="vendor/exceljs.min.js?v=20260722-cloud-excel-delete-v19"></script>
+  <script src="report.js?v=20260722-cloud-excel-delete-v19"></script>
   <script>
     (async () => {
       const childId = new URLSearchParams(location.search).get("child") || "";
@@ -75,27 +75,60 @@
         details.textContent = `${new Date(record.submittedAt).toLocaleString("zh-CN")} · 用时 ${EnglishTestReport.formatClock(record.elapsedMs)}`;
         copy.append(title, details);
 
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "primary-btn submission-download";
-        button.textContent = "下载 Excel";
-        button.addEventListener("click", async () => {
-          if (button.disabled) return;
-          button.disabled = true;
+        const actions = document.createElement("div");
+        actions.className = "submission-actions";
+
+        const downloadButton = document.createElement("button");
+        downloadButton.type = "button";
+        downloadButton.className = "primary-btn submission-download";
+        downloadButton.textContent = "下载 Excel";
+        downloadButton.addEventListener("click", async () => {
+          if (downloadButton.disabled) return;
+          downloadButton.disabled = true;
           try {
-            button.textContent = "正在生成…";
+            downloadButton.textContent = "正在生成…";
             await EnglishTestReport.downloadExcel(record);
-            button.textContent = "已下载";
+            downloadButton.textContent = "已下载";
           } catch (error) {
             console.error("Excel 生成失败。", error);
             alert(error.message || "Excel 生成失败，请刷新页面后再试。");
-            button.textContent = "下载 Excel";
+            downloadButton.textContent = "下载 Excel";
           } finally {
-            button.disabled = false;
+            downloadButton.disabled = false;
           }
         });
 
-        card.append(copy, button);
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "submission-delete";
+        deleteButton.textContent = "删除作业";
+        deleteButton.addEventListener("click", async () => {
+          if (deleteButton.disabled) return;
+          const lessonName = record.lessonTitle || `Lesson ${record.lessonId}`;
+          if (!confirm(`确定删除“${lessonName}”这份作业吗？\n\n删除后将无法恢复。`)) return;
+
+          downloadButton.disabled = true;
+          deleteButton.disabled = true;
+          deleteButton.textContent = "删除中…";
+
+          try {
+            await deleteSubmissionRecord(record.id, child.id);
+            card.remove();
+            if (!list.children.length) {
+              list.classList.add("hidden");
+              empty.classList.remove("hidden");
+            }
+          } catch (error) {
+            console.error("作业删除失败。", error);
+            alert(error.message || "作业删除失败，请检查网络后再试。");
+            downloadButton.disabled = false;
+            deleteButton.disabled = false;
+            deleteButton.textContent = "删除作业";
+          }
+        });
+
+        actions.append(downloadButton, deleteButton);
+        card.append(copy, actions);
         list.appendChild(card);
       });
     })();

@@ -1,10 +1,11 @@
-const CACHE = "english-test-cloud-excel-v18";
+const CACHE = "english-test-cloud-excel-delete-v20";
 const ASSETS = [
   "./",
   "./index.html",
   "./parent.html",
   "./children.html",
   "./submissions.html",
+  "./submissions-v20.html",
   "./student.html",
   "./admin.html",
   "./style.css",
@@ -45,6 +46,6 @@ self.addEventListener("fetch", event => {
         caches.open(CACHE).then(cache => cache.put(event.request, copy));
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => caches.match(event.request, { ignoreSearch: true }))
   );
 });

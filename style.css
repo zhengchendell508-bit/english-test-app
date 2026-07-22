@@ -66,11 +66,14 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .submission-copy strong,.submission-copy span{display:block}
 .submission-copy strong{font-size:18px;margin-bottom:6px}
 .submission-copy span{color:var(--muted);line-height:1.5}
+.submission-actions{display:flex;align-items:center;gap:9px;flex:0 0 auto}
 .submission-download{flex:0 0 auto;min-width:128px}
+.submission-delete{min-height:44px;padding:0 16px;border:1px solid #f0caca;border-radius:12px;background:#fff0f0;color:var(--danger);font-weight:750;cursor:pointer}
 @media(max-width:650px){
   .child-actions{align-items:stretch;flex-direction:column}
   .submission-card{align-items:stretch;flex-direction:column}
-  .submission-download{width:100%}
+  .submission-actions{align-items:stretch;flex-direction:column}
+  .submission-download,.submission-delete{width:100%}
 }
 
 /* 固定顶部考试栏 */
