@@ -557,7 +557,7 @@
           <strong>${escapeHtml(missingDetails)}</strong>
         </div>
         <p>这些题目可以先返回继续填写；如果确实不会，也可以点击“依然提交”。</p>
-        <p class="muted">未填写的题目在 PDF 中会保留为空白。</p>
+        <p class="muted">未填写的题目在 Excel 中会保留为空白。</p>
       `;
       forceSubmitBtn.hidden = false;
       $("resultDialog").showModal();
@@ -606,7 +606,7 @@
       await window.saveSubmissionRecord(submissionRecord);
 
       $("resultTitle").textContent = "提交完成";
-      $("resultBody").innerHTML = "<p><strong>本次作业已成功提交到云端。</strong></p><p>家长可以在电脑端进入“管理孩子 → 作业记录”下载 PDF。</p>";
+      $("resultBody").innerHTML = "<p><strong>本次作业已成功提交到云端。</strong></p><p>家长可以在电脑端进入“管理孩子 → 作业记录”下载 Excel。</p>";
     } catch (error) {
       console.error("作业提交到云端失败。", error);
       $("resultTitle").textContent = "提交失败";

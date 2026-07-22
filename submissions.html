@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>孩子作业记录</title>
-  <link rel="stylesheet" href="style.css?v=20260721-cloud-pdf-v17">
-  <script src="device-mode.js?v=20260721-cloud-pdf-v17"></script>
+  <link rel="stylesheet" href="style.css?v=20260722-cloud-excel-v18">
+  <script src="device-mode.js?v=20260722-cloud-excel-v18"></script>
   <script>
     if (window.AppDeviceMode?.isStudentOnlyDevice) {
       location.replace("children.html");
@@ -18,7 +18,7 @@
       <a href="children.html?manage=1" class="back-btn">‹</a>
       <div>
         <h1 id="pageTitle">孩子作业记录</h1>
-        <p>查看已经提交的测试，并重新下载 PDF</p>
+        <p>查看已经提交的测试，并下载 Excel 表格</p>
       </div>
     </header>
 
@@ -35,11 +35,10 @@
 
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="account.js?v=20260721-cloud-pdf-v17"></script>
-  <script src="submission-store.js?v=20260721-cloud-pdf-v17"></script>
-  <script src="vendor/html2canvas.min.js?v=20260721-cloud-pdf-v17"></script>
-  <script src="vendor/jspdf.umd.min.js?v=20260721-cloud-pdf-v17"></script>
-  <script src="report.js?v=20260721-cloud-pdf-v17"></script>
+  <script src="account.js?v=20260722-cloud-excel-v18"></script>
+  <script src="submission-store.js?v=20260722-cloud-excel-v18"></script>
+  <script src="vendor/exceljs.min.js?v=20260722-cloud-excel-v18"></script>
+  <script src="report.js?v=20260722-cloud-excel-v18"></script>
   <script>
     (async () => {
       const childId = new URLSearchParams(location.search).get("child") || "";
@@ -79,19 +78,18 @@
         const button = document.createElement("button");
         button.type = "button";
         button.className = "primary-btn submission-download";
-        button.textContent = "下载 PDF";
+        button.textContent = "下载 Excel";
         button.addEventListener("click", async () => {
           if (button.disabled) return;
           button.disabled = true;
           try {
-            await EnglishTestReport.downloadPdf(record, (current, total) => {
-              button.textContent = `生成中 ${current}/${total}`;
-            });
+            button.textContent = "正在生成…";
+            await EnglishTestReport.downloadExcel(record);
             button.textContent = "已下载";
           } catch (error) {
-            console.error("PDF 生成失败。", error);
-            alert(error.message || "PDF 生成失败，请刷新页面后再试。");
-            button.textContent = "下载 PDF";
+            console.error("Excel 生成失败。", error);
+            alert(error.message || "Excel 生成失败，请刷新页面后再试。");
+            button.textContent = "下载 Excel";
           } finally {
             button.disabled = false;
           }

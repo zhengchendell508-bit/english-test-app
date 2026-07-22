@@ -1,4 +1,4 @@
-const CACHE = "english-test-cloud-pdf-v17";
+const CACHE = "english-test-cloud-excel-v18";
 const ASSETS = [
   "./",
   "./index.html",
@@ -15,8 +15,7 @@ const ASSETS = [
   "./submission-store.js",
   "./student.js",
   "./admin.js",
-  "./vendor/html2canvas.min.js",
-  "./vendor/jspdf.umd.min.js"
+  "./vendor/exceljs.min.js"
 ];
 
 self.addEventListener("install", event => {
